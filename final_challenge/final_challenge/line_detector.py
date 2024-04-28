@@ -14,7 +14,7 @@ class LineDetector(Node):
         self.bridge = CvBridge()
         # self.callback()
         # img = Image()
-        img = cv2.imread('/home/racecar/racecar_ws/src/final_challenge2024/final_challenge/final_challenge/start_area_cropped.jpg')
+        img = cv2.imread('/home/racecar/racecar_ws/src/final_challenge2024/final_challenge/final_challenge/start_area.jpg')
         msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
         self.callback(msg)
 
@@ -38,8 +38,19 @@ class LineDetector(Node):
 
         linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,50,10)
         # lines = cv2.HoughLines(dst, 1, np.pi / 180, 150, None, 0, 0)
-        print(linesP)
+        # print(linesP)
         # PIXEL_THRESHOLD = 50
+
+        # print(linesP[:,0].shape)
+        lines = linesP[:,0]
+        x0 = lines[:,0]
+        xf = lines[:,2]
+        y0 = lines[:,1]
+        yf = lines[:,3]
+        # print(x0,xf)
+        xc1,xc2,yc1,yc2 = np.array( [ np.mean(x0), np.mean(xf), np.mean(y0), np.mean(yf) ] ).astype(int)
+        cv2.line(cdstP,(xc1,yc1),(xc2,yc2),(255,0,0),3,cv2.LINE_AA)
+
         if linesP is not None:
             for i in range(0, len(linesP)):
                 l = linesP[i][0]
