@@ -37,10 +37,11 @@ class LineDetector(Node):
 
         dst = cv2.Canny(thresh,50,200,None,3)
 
-        # cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
+        cdstP = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
         # cdstP = np.copy(cdst)
 
-        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,50,10)
+        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,50,10) #these parameters work
+        # linesP = cv2.HoughLinesP(dst,1,np.pi/180,75,None,50,10)
         # lines = cv2.HoughLines(dst, 1, np.pi / 180, 150, None, 0, 0)
         # print(linesP)
         # PIXEL_THRESHOLD = 50
@@ -55,11 +56,11 @@ class LineDetector(Node):
 
         xc1,yc1,xc2,yc2 = np.array( (left_avg + right_avg)//2 ).astype(int)
         # xc1,xc2,yc1,yc2 = np.array( [ np.median(x0), np.median(xf), np.median(y0), np.median(yf) ] ).astype(int)
-        # cv2.line(cdstP,(xc1,yc1),(xc2,yc2),(255,0,0),3,cv2.LINE_AA)
+        cv2.line(cdstP,(xc1,yc1),(xc2,yc2),(255,0,0),3,cv2.LINE_AA)
 
-        # if linesP is not None:
-        #     for i in range(0, len(linesP)):
-        #         l = linesP[i][0]
+        if linesP is not None:
+            for i in range(0, len(linesP)):
+                l = linesP[i][0]
 
                 # x_start = l
         #        rho = lines[i][0][0]
@@ -70,7 +71,7 @@ class LineDetector(Node):
         #        y0 = b * rho
         #        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
         #        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-                # cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+                cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
         self.get_logger().info(f'Got lines in {self.get_clock().now().nanoseconds/1e9 - t1} seconds')
         cv2.imwrite('/home/racecar/racecar_ws/src/final_challenge2024/final_challenge/final_challenge/lines.jpg',cdstP)
 
