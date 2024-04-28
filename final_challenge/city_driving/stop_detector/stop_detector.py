@@ -7,6 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from sensor_msgs.msg import Image
 from detector import StopSignDetector
+from final_challenge2024.msg import StopSign
 
 class SignDetector(Node):
     def __init__(self):
@@ -17,12 +18,15 @@ class SignDetector(Node):
         self.bridge = CvBridge()
 
         self.get_logger().info("Stop Detector Initialized")
+        self.publisher = self.create_publisher(StopSign,"/stop",1)
 
     def callback(self, img_msg):
         # Process image with CV Bridge
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
-
-        #TODO: 
+        is_stop, location = self.detector.predict(image)
+        msg = StopSign()
+        msg.data = is_stop
+        self.publisher.publish(self.publisher)
 
 def main(args=None):
     rclpy.init(args=args)
