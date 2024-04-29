@@ -27,7 +27,7 @@ class SignDetector(Node):
         msg.is_stop = is_stop
         #this probs needs debugging
         msg.bounding_box = location
-        self.publisher.publish(self.publisher)
+        self.publisher.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
