@@ -7,7 +7,9 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from sensor_msgs.msg import Image
 from final_challenge.stop_detector.detector import StopSignDetector
-from final_challenge.msg import StopSign
+from fc_msgs.msg import StopSign
+
+from vs_msgs.srv import UvToXy
 
 class SignDetector(Node):
     def __init__(self):

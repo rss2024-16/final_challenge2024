@@ -1,4 +1,6 @@
 from setuptools import setup
+import glob
+import os
 
 package_name = 'final_challenge'
 
@@ -10,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/final_challenge/launch', glob.glob(os.path.join('launch', '*launch.xml')))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
