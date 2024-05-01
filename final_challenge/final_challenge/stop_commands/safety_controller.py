@@ -30,9 +30,12 @@ class SafetyController(Node):
         self.declare_parameter("stop_range", "default")
 
         # Fetch constants from the ROS parameter server
-        self.SCAN_TOPIC = self.get_parameter('scan_topic').get_parameter_value().string_value
-        self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
-        self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
+        # self.SCAN_TOPIC = self.get_parameter('scan_topic').get_parameter_value().string_value
+        self.SCAN_TOPIC = '/scan'
+        # self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
+        self.SAFETY_TOPIC = '/vesc/low_level/input/safety'
+        # self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
+        self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
         # self.STOP_RANGE = self.get_parameter("stop_range").get_parameter_value().double_value
 
         self.sub_navigation = self.create_subscription(AckermannDriveStamped, self.NAVIGATION_TOPIC, self.navigation_callback, 10)
@@ -41,8 +44,10 @@ class SafetyController(Node):
 
         self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
 
-        self.VELOCITY = 3.0
+        # self.VELOCITY = 1.6
         # self.STOP_RANGE = 1.0
+        self.VELOCITY = 4.0
+        # self.VELOCITY = 0.0
 
 
     def navigation_callback(self, msg: AckermannDriveStamped):
@@ -50,7 +55,9 @@ class SafetyController(Node):
         Process navigation commands here
         For now, let's just pass them through
         '''
-        self.pub_safety.publish(msg)
+        # self.pub_safety.publish(msg)
+        # self.VELOCITY = msg.drive.speed
+        pass
 
 
     def slice_ranges(self, laser_scan: LaserScan):
@@ -65,14 +72,15 @@ class SafetyController(Node):
         '''
         ranges = laser_scan.ranges
         length = len(ranges) #100
+        # self.get_logger().info(str(ranges))
 
         #laser scans counterclockwise
         #part 1: filter the ranges data to just the front
-        ranges = ranges[length//3 : 2*length//3]
+        ranges = ranges[2*length//5 : 3*length//5]
         distances : np.ndarray = np.array(ranges)
 
         angles : np.ndarray = np.linspace(laser_scan.angle_min, laser_scan.angle_max, num=length)
-        thetas = angles[length//3 : 2*length//3]
+        thetas = angles[2*length//5 : 3*length//5]
 
         return distances, thetas
 
@@ -88,17 +96,18 @@ class SafetyController(Node):
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
         if min(distances) < self.STOP_RANGE:
             # Example threshold, adjust as needed
+            # self.get_logger().info('stopping')
             stop_cmd.drive.speed = 0.0
             stop_cmd.drive.steering_angle = 0.0
-        else:
-            stop_cmd.drive.speed = self.VELOCITY
-            stop_cmd.drive.steering_angle = 0.0
-        self.get_logger().info('stop_range: "%s"' % self.STOP_RANGE)
-        stop_cmd.drive.steering_angle_velocity = 0.0
-        stop_cmd.drive.acceleration = 0.0 # a= -v^2/2(d-d')
-        stop_cmd.drive.jerk = 0.0
-        self.get_logger().info('HELP "%s"' % stop_cmd.drive.speed)
-        self.pub_safety.publish(stop_cmd)
+            self.pub_safety.publish(stop_cmd)
+        # else:
+        #     stop_cmd.drive.speed = self.VELOCITY
+        #     stop_cmd.drive.steering_angle = 0.0
+        # self.get_logger().info('stop_range: "%s"' % self.STOP_RANGE)
+        # stop_cmd.drive.steering_angle_velocity = 0.0
+        # stop_cmd.drive.acceleration = 0.0 # a= -v^2/2(d-d')
+        # stop_cmd.drive.jerk = 0.0
+        # self.get_logger().info('HELP "%s"' % stop_cmd.drive.speed)
 
 def main():
 

@@ -5,6 +5,32 @@ from std_msgs.msg import String
 
 class CityDrivingStateMachine(Node):
 
+    """
+    Plan:
+    States: 
+    State -> Loc1, Loc1 -> Loc2, Loc2 -> Loc3, Loc3 -> Start, 
+    Approach Stop Light, Approach Stop Sign, Approach Pedestrian Walkway
+    Pick Up Shell,
+    
+    Stuff to run:
+    For State -> Loc1, Loc1 -> Loc2, Loc2 -> Loc3, Loc3 -> Start: run wall follower/bfs/rrt etc.
+    For Approach Stop Light: run parking controller stuff 
+    For Approach Stop Sign: run parking controller stuff
+    For Pick Up Shell: stop 7 seconds using ROS timer
+    For Approach Pedestrian Walkway: run safety controller stuff
+
+    Transition: 
+    If nothing else happening, we run:
+    State-Loc1 -> Pick-Up-Shell -> Loc1-Loc2 -> Pick-Up-Shell -> Loc2-Loc3 -> Pick-Up-Shell -> Loc3-Start
+
+    If within certain radius of the stop light, turn on stop light detector and parking controller 
+    -> go back to navigating after stop
+
+    If detect stop sign, turn on parking controller -> continue navigating
+
+    Safety controller should be running the whole time 
+    """
+
     def __init__(self):
         super().__init__('city_driving_state_machine')
         self.state_machine = StateMachine()
