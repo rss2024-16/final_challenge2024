@@ -24,7 +24,9 @@ setup(
     entry_points={
         'console_scripts': [
             'stop_detector = final_challenge.stop_detector.stop_detector:main',
-            'line_detector = final_challenge.line_detector:main'
+            'line_detector = final_challenge.line_detector:main',
+            'fake_image_pub = final_challenge.fakepublish:main',
+            'BasementPointPub = final_challenge.basement_point_publisher:main'
         ],
     },
 )
