@@ -7,8 +7,7 @@ from cv_bridge import CvBridge
 import numpy as np
 from sensor_msgs.msg import Image
 # from geometry_msgs.msg import Point
-from vs_msgs.msg import ConeLocation
-from visual_interface.srv import UvToXy
+from vs_msgs.msg import ConeLocationPixel
 
 class LineDetector(Node):
     def __init__(self):
@@ -18,13 +17,9 @@ class LineDetector(Node):
 
         self.subscriber = self.create_subscription(Image, "/zed/zed_node/rgb_gray/image_rect_gray", self.callback, 1)
         
-        self.publisher = self.create_publisher(ConeLocationPixel,'/relative_cone',5)
+        self.publisher = self.create_publisher(ConeLocationPixel, "/relative_cone_px",5)
 
         self.img_view = self.create_publisher(Image,'/line_image',1)
-
-        self.client = self.create_client(UvToXy,'uv_to_xy')
-        self.req = UvToXy.Request()
-        
         self.bridge = CvBridge()
         # self.callback()
         # img = Image()
@@ -35,48 +30,26 @@ class LineDetector(Node):
     def get_closest_lines(self,lines,shape):
         midpoint = int(shape[0]//2)
         height = shape[1]
+        pose = np.array( [midpoint,height] )
 
         slopes = np.array( [abs( (yc2-yc1)/(xc2-xc1) ) for xc1,yc1,xc2,yc2 in lines] )
         lines = lines[(slopes > 0.2)]
         left_lines = lines[lines[:,0] <= midpoint]
         right_lines = lines[lines[:,0] > midpoint]
 
-        if len(left_lines) == 0 or len(right_lines) == 0:
+        if len(left_lines) ==0 or len(right_lines) == 0:
             return
 
-        pose = np.array( [midpoint,height] )
+        diff_left = left_lines[:,:2] - pose
+        diff_right = right_lines[:,:2] - pose
+        dist_left = ( (diff_left[:,0])**2 + (diff_left[:,1])**2 ) ** (1/2)
+        dist_right = ( (diff_right[:,0])**2 + (diff_right[:,1])**2 ) ** (1/2)
 
-        dist = lambda p1,p2: ( (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 )**(1/2)
-
-        left_closest = None
-        left_distance = float('inf')
-        right_closest = None
-        right_distance = float('inf')
-
-        for ll in left_lines:
-            xc1,yc1,xc2,yc2 = ll
-            d = dist( pose, (xc1,yc1) )
-            if d < left_distance:
-                left_closest = ll
-                left_distance = d
-
-        for rl in right_lines:
-            xc1,yc1,xc2,yc2 = rl
-            d = dist( pose, (xc1,yc1) )
-            if d < right_distance:
-                right_closest = rl
-                right_distance = d
+        left_closest = left_lines[np.argmin(dist_left)]
+        right_closest = right_lines[np.argmin(dist_right)]
 
         return left_closest,right_closest
     
-    def send_request(self,u,v):
-        self.req.u = u
-        self.req.v = v
-
-        self.future = self.client.call_async(self.req)
-        rclpy.spin_until_future_complete(self,self.future)
-        res = self.future.result()
-        return res.x,res.y
 
     def callback(self,img_msg):
         '''
@@ -84,16 +57,16 @@ class LineDetector(Node):
         https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
 
         '''
-        self.get_logger().info('Got image')
+        # self.get_logger().info('Got image')
         t1 = self.get_clock().now().nanoseconds/1e9
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
 
         height,width,_ = image.shape
 
         midpoint = width // 2
-        crop_mid_scale = 0.6
-        mid_start = int( midpoint*crop_mid_scale )
-        image[:,mid_start:width-mid_start, :] = 0
+        # crop_mid_scale = 0.6
+        # mid_start = int( midpoint*crop_mid_scale )
+        # image[:,mid_start:width-mid_start, :] = 0
 
         v = 200
 
@@ -118,6 +91,16 @@ class LineDetector(Node):
         # width = image.shape[0]
         midpoint = int( width / 2 )
 
+        PIXEL_STEP = 80
+
+        start_point = int( .25*width )
+        end_point = int( width - start_point )
+
+        for x in range(start_point,end_point,PIXEL_STEP):
+            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
+
+        OFFSET = 35
+
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
 
@@ -127,7 +110,7 @@ class LineDetector(Node):
 
         cdstP = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
 
-        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,50,10) #these parameters work
+        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,60,9) #these parameters work
 
         if linesP is not None:
 
@@ -140,16 +123,19 @@ class LineDetector(Node):
             
             # x1,x2,x3,x4 = right_closest
             # self.get_logger().info(f'slope: {(x4-x2)/(x3-x1)}')
-            xc1r,yc1r,xc2r,yc2r = right_closest
-            xc1l,yc1l,xc2l,yc2l = left_closest
+            x1r,y1r,x2r,y2r = right_closest
+            x1l,y1l,x2l,y2l = left_closest
 
-            xr,yr = self.send_request(xc1r,yc1r)
-            xl,yl = self.send_request(xc1l,yc1l)
-            avg = [ (xr+xl)/2, (yr+yl)/2 ]
+            # self.get_logger().info(f'left slope: {(x1l-x2l)/(y2l-y1l)}')
+            # self.get_logger().info(f'right slope: {(x1r-x2r)/(y1r-y2r)}')
 
-            msg = ConeLocation()
-            msg.x = avg[0] #publish to line follower
-            msg.y = avg[1]
+            mpr = [ (x1r+x2r)/2, (y1r+y2r)/2 ]
+            mpl = [ (x1l+x2l)/2, (y1l+y2l)/2 ]
+            avg = [(mpr[0]+mpl[0])/2, (mpl[1]+mpr[1])/2]
+
+            msg = ConeLocationPixel()
+            msg.u = float(avg[0]) + OFFSET #publish to line follower
+            msg.v = float(avg[1])
 
             self.publisher.publish(msg)
 
@@ -157,6 +143,11 @@ class LineDetector(Node):
 
             cv2.line(cdstP, (left_closest[0], left_closest[1]), (left_closest[2], left_closest[3]), (0,0,255), 3, cv2.LINE_AA)
             cv2.line(cdstP, (right_closest[0], right_closest[1]), (right_closest[2], right_closest[3]), (0,0,255), 3, cv2.LINE_AA)
+        
+            cv2.circle(cdstP,(int(avg[0]+OFFSET),int(avg[1])),radius=5,color=(255,0,0),thickness=1)
+            img_msg = self.bridge.cv2_to_imgmsg(cdstP, encoding="bgr8")
+            self.img_view.publish(img_msg)
+
         # linesP = cv2.HoughLinesP(dst,1,np.pi/180,75,None,50,10)
         # lines = cv2.HoughLines(dst, 1, np.pi / 180, 150, None, 0, 0)
         # print(linesP)
@@ -188,11 +179,6 @@ class LineDetector(Node):
             #     msg.v = yc2
 
             #     self.publisher.publish(msg)
-
-            #     cv2.circle(cdstP,(int(xc2),int(yc2)),radius=5,color=(255,0,0),thickness=1)
-            #     img_msg = self.bridge.cv2_to_imgmsg(cdstP, encoding="bgr8")
-            #     self.img_view.publish(img_msg)
-
             #     view = False
             #     if view:
             #         if linesP is not None:
@@ -213,7 +199,7 @@ class LineDetector(Node):
             # #        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
             # #        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
             #         cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
-            self.get_logger().info(f'Got lines in {self.get_clock().now().nanoseconds/1e9 - t1} seconds')
+            # self.get_logger().info(f'Got lines in {self.get_clock().now().nanoseconds/1e9 - t1} seconds')
         # cv2.imwrite('/home/racecar/racecar_ws/src/final_challenge2024/final_challenge/final_challenge/lines.jpg',cdstP)
 
 def main(args=None):
