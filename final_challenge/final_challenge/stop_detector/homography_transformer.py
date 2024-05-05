@@ -53,7 +53,7 @@ class HomographyTransformer(Node):
         super().__init__("homography_transformer")
 
         self.cone_pub = self.create_publisher(StopLightLocation, "/relative_stoplight", 10)
-        self.marker_pub = self.create_publisher(Marker, "/cone_marker", 1)
+        # self.marker_pub = self.create_publisher(Marker, "/cone_marker", 1)
         self.cone_px_sub = self.create_subscription(StopLightPixel, "/relative_stoplight_px", self.stoplight_detection_callback, 1)
 
         self.pixel_sub = self.create_subscription(Point, "/zed/zed_node/rgb/image_rect_color_mouse_left", self.image_callback, 10)
