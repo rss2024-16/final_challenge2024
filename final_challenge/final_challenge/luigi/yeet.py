@@ -63,6 +63,7 @@ class PurePursuit(YasminNode):
         self.wheelbase_length = 0.3  # FILL IN #
 
         self.MIN_SPEED = 1.6
+        self.MID_SPEED = 2.5
         self.MAX_SPEED = 4.0
 
         self.MAX_LOOKAHEAD = 3.0
@@ -152,16 +153,16 @@ class PurePursuit(YasminNode):
         
         distance_to_goal = self.distance(np.array([0,0,0]), relative_points[-1]) #distance to goal pose
 
-        closest_intersect = self.closest_intersect()
-        if closest_intersect is not None:
-            closest_point_intersect = closest_intersect[0]
-            closest_global = np.matmul(closest_point_intersect, np.linalg.inv(R)) + self.current_pose
-            self.closest.publish(self.to_marker(closest_global, 0, [0.0, 0.0, 1.0], 0.5))
+        # closest_intersect = self.closest_intersect()
+        # if closest_intersect is not None:
+        #     closest_point_intersect = closest_intersect[0]
+        #     closest_global = np.matmul(closest_point_intersect, np.linalg.inv(R)) + self.current_pose
+        #     self.closest.publish(self.to_marker(closest_global, 0, [0.0, 0.0, 1.0], 0.5))
         
-        if closest_intersect is not None:
-            closest_intersect_distance = closest_intersect[1]
-        else:
-            closest_intersect_distance = None
+        # if closest_intersect is not None:
+        #     closest_intersect_distance = closest_intersect[1]
+        # else:
+        #     closest_intersect_distance = None
 
         if distance_to_goal < 0.5: 
             # self.get_logger().info("close enough to goal")
@@ -173,7 +174,7 @@ class PurePursuit(YasminNode):
             return True, None, None, None, None
         
         # self.publish_marker_array(self.relative_point_pub, np.array([closest_point]), R, self.current_pose, rgb=[1.0, 0.0, 0.0])
-        return closest_point, index, distance_to_goal, closest_intersect_distance, closest_point_intersect
+        return closest_point, index, distance_to_goal
     
 
     def find_circle_intersection(self, center, radius, p1, p2, R):
@@ -235,10 +236,13 @@ class PurePursuit(YasminNode):
         if self.points is not None:
             differences = self.points - self.current_pose
             relative_points = np.array([np.matmul(i,R) for i in differences])
-            closest_point, index, distance_to_goal, intersect_distance, closest_point_intersect = \
-                self.find_closest_point_on_trajectory(relative_points, R)
+            closest_point, index, distance_to_goal = \
+                                        self.find_closest_point_on_trajectory(relative_points, R)
             # self.get_logger().info("index: " + str(index))
             # self.get_logger().info("distance to goal: " + str(distance_to_goal))
+
+            alpha = np.arctan2(closest_point[1],closest_point[0])
+            curvature = 2*np.sin(alpha)
 
             drive_cmd = AckermannDriveStamped()
 
