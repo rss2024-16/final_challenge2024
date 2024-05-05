@@ -100,10 +100,14 @@ class SafetyController(Node):
             stop_cmd.drive.speed = 0.0
             stop_cmd.drive.steering_angle = 0.0
             self.pub_safety.publish(stop_cmd)
-        else:
-            stop_cmd.drive.speed = self.VELOCITY
-            stop_cmd.drive.steering_angle = 0.0
-            self.pub_safety.publish(stop_cmd)
+        # else:
+        #     stop_cmd.drive.speed = self.VELOCITY
+        #     stop_cmd.drive.steering_angle = 0.0
+        # self.get_logger().info('stop_range: "%s"' % self.STOP_RANGE)
+        # stop_cmd.drive.steering_angle_velocity = 0.0
+        # stop_cmd.drive.acceleration = 0.0 # a= -v^2/2(d-d')
+        # stop_cmd.drive.jerk = 0.0
+        # self.get_logger().info('HELP "%s"' % stop_cmd.drive.speed)
 
         # self.get_logger().info('stop_range: "%s"' % self.STOP_RANGE)
         # stop_cmd.drive.steering_angle_velocity = 0.0

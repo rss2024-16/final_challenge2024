@@ -20,6 +20,11 @@ class LineDetector(Node):
         self.publisher = self.create_publisher(ConeLocationPixel, "/relative_cone_px",5)
 
         self.img_view = self.create_publisher(Image,'/line_image',1)
+        self.cropped_img = self.create_publisher(Image,'/cropped',1)
+
+        # self.client = self.create_client(UvToXy,'uv_to_xy')
+        # self.req = UvToXy.Request()
+        
         self.bridge = CvBridge()
         # self.callback()
         # img = Image()
@@ -30,6 +35,7 @@ class LineDetector(Node):
     def get_closest_lines(self,lines,shape):
         midpoint = int(shape[0]//2)
         height = shape[1]
+        pose = np.array( [midpoint,height] )
         pose = np.array( [midpoint,height] )
 
         slopes = np.array( [abs( (yc2-yc1)/(xc2-xc1) ) for xc1,yc1,xc2,yc2 in lines] )
@@ -56,10 +62,21 @@ class LineDetector(Node):
         code is basically exact replica of:
         https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
 
+        
+        cropping is much more dynamic with striping - it essentially gets rid of low slope lines
+        for example, if you crop every 60 pixels with line radius 11, you would need a line of
+        slope 2.1 to reach the 80 px threshold between the crops
+
+        this basically ensures we do not follow a horizontal line in the middle of the
+        camera frame
+
+        it also biases closer lines
         '''
         # self.get_logger().info('Got image')
         t1 = self.get_clock().now().nanoseconds/1e9
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
+
+        image = cv2.resize(image,(640,480))
 
         height,width,_ = image.shape
 
@@ -71,24 +88,44 @@ class LineDetector(Node):
         v = 200
 
         lower = int((1-self.crop_scale)*v)
-        # # upper = int((1+self.crop_scale)*v)
-        # upper = height
-        # if upper > height:
-        #     upper = height
-
-        # # image_copy = np.copy(image)
         image[:lower,:,:] = 0
-        # image[upper:,:,:] = 0        
 
-        # crop_sides = int(width * .2)
-        # # crop_height = int(height // 2)
-        # # image[:crop_height, :, :] = 0
-        # image[:,:crop_sides, :] = 0
-        # image[:,width-crop_sides:, :] = 0
-        # print(image.shape)
+        PIXEL_STEP = 80
 
-        # image = image[(image[:,0,])>0,(image[:,1])>0,:]
-        # width = image.shape[0]
+        RADIUS = 1
+
+
+        curved_lines = []
+
+        start_point = int( .25*width )
+        # image[:,0:start_point,:] = 0
+        end_point = int( width - start_point )
+
+        
+        for x in range(start_point,end_point,PIXEL_STEP):
+            # curved_points = []
+            # for y in range(0, height):
+            #     val = (int(x) + int(RADIUS*np.sin(2*np.pi*y/(height/6))), y)
+            #     curved_points.append(val)
+            # cv2.polylines(image, np.array([curved_points]), isClosed=False, color=(0, 0, 0), thickness=11)
+            # curved_lines.append(curved_points)
+            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=10)
+
+        # self.get_logger().info(f'{curved_lines}')
+
+
+        # Convert the curve points to numpy array format
+        # curve_points = np.array(curve_points, dtype=np.int32)
+        # curved_lines = np.array(curved_lines, dtype=np.int32)
+
+        # Draw the curve
+        # for line in curved_lines:
+            # self.get_logger().info(f'{line}')
+
+        img_msg = self.bridge.cv2_to_imgmsg(image, encoding="bgr8")
+        self.cropped_img.publish(img_msg)
+        #"stripe" the image to remove horizontal lines
+
         midpoint = int( width / 2 )
 
         PIXEL_STEP = 80
@@ -105,8 +142,6 @@ class LineDetector(Node):
         _, thresh = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
 
         dst = cv2.Canny(thresh,50,200,None,3)
-
-        # if not np.isnan(dst):
 
         cdstP = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
 
