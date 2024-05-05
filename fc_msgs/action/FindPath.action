@@ -1,0 +1,5 @@
+geometry_msgs/PoseArray s_and_t
+---
+geometry_msgs/PoseArray trajectory
+---
+string outcome

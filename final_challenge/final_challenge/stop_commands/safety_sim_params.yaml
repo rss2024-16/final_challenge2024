@@ -1,0 +1,5 @@
+safety_controller:
+  ros__parameters:
+    scan_topic: "/scan"
+    navigation_topic: "/drive"
+    safety_topic: "/drive"
