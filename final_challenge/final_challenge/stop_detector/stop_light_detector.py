@@ -15,7 +15,7 @@ from std_msgs.msg import Float32
 
 
 # import your color segmentation algorithm; call this function in ros_image_callback!
-from stop_light_segmentation import sl_color_segmentation
+# from final_challenge.stop_detector.stop_light_segmentation import sl_color_segmentation
 
 class StopLightDetector(Node):
    """
@@ -24,15 +24,16 @@ class StopLightDetector(Node):
    Publishes to: /relative_cone_px (StopLightPixel) : the coordinates of the cone in the image frame (units are pixels).
    """
    def __init__(self):
-       super().__init__("stoplight_detector")
+       super().__init__("stop_light_detector")
        # toggle line follower vs cone parker
        self.LineFollower = False
 
        # Subscribe to ZED camera RGB frames
        self.stoplight_pub = self.create_publisher(StopLightPixel, "/relative_stoplight_px", 10)
        self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
+       self.box_publisher = self.create_publisher(Image,"/stop_light_bb",10)
 
-       self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
+    #    self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
        self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
 
        self.get_logger().info("Stop Light Detector Initialized")
@@ -54,20 +55,20 @@ class StopLightDetector(Node):
        height = image.shape[1]
 
        look_ahead = 2.5
-       self.dist_pub.publish(float(look_ahead))
-       v = self.get_parameter('look_ahead_v').value
+    #    self.dist_pub.publish(float(look_ahead))
+    #    v = self.get_parameter('look_ahead_v').value
 
-       if v == 0:
-           v = 168.7
+    #    if v == 0:
+    #        v = 168.7
 
-       lower = int(.9*v)
-       upper = int(1.1*v)
-       if upper > height:
-           upper = height
+    #    lower = int(.9*v)
+    #    upper = int(1.1*v)
+    #    if upper > height:
+        #    upper = height
        # image_cropped = image[lower:upper,:,:]
        image_copy = np.copy(image)
-       image_copy[0:lower,:,:] = 0
-       image_copy[upper:,:,:] = 0
+    #    image_copy[0:lower,:,:] = 0
+    #    image_copy[upper:,:,:] = 0
 
        x, y, w, h, img = sl_color_segmentation(image_copy,None)
 
@@ -80,15 +81,84 @@ class StopLightDetector(Node):
            self.stoplight_pub.publish(center_pixel)
 
            debug_msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
-           self.debug_pub.publish(debug_msg)
+           self.box_publisher.publish(debug_msg)
 
+
+
+def sl_color_segmentation(img, template):
+	"""
+	Implement the cone detection using color segmentation algorithm
+	Input:
+		img: np.3darray; the input image with a cone to be detected. BGR.
+		template_file_path; Not required, but can optionally be used to automate setting hue filter values.
+	Return:
+		x, y: Top left of the bounding box
+		w, h: Width and height of the bounding box
+	"""
+    # Convert bgr to hsv
+	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+
+	RED_THRESHOLD = [
+		([0, 160, 100], [10, 255, 255]),
+        ([160, 160, 100], [180, 255, 255])
+	]
+
+    # Set lower and upper bounds for cone
+	lower_bound = np.array(RED_THRESHOLD[0][0])
+	upper_bound = np.array(RED_THRESHOLD[0][1])
+
+	mask1 = cv2.inRange(hsv, lower_bound, upper_bound)
+
+	lower_bound2 = np.array(RED_THRESHOLD[1][0])
+	upper_bound2 = np.array(RED_THRESHOLD[1][1])
+
+    # Blur
+	#img = cv2.GaussianBlur(img, (5,5), 0)
+	#img = cv2.medianBlur(img, 5)
+	img = cv2.blur(img, (4,4))
+	img = cv2.bilateralFilter(img, 5, 75, 75)
+
+	# Mask out our colors
+
+	mask2 = cv2.inRange(hsv, lower_bound2, upper_bound2)
+
+	mask = mask1 | mask2
+
+	#image_print(mask)
+	#image_print(img)
+
+
+	# Find contours from masks
+	contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+	# If we have contours
+	if len(contours) != 0:
+
+		# Find the biggest countour by area
+		c = max(contours, key = cv2.contourArea)
+
+		# Get a bounding rectangle around that contour
+		x, y, w, h = cv2.boundingRect(c)
+
+		# Add circle and destination point
+		cv2.rectangle(img, (x,y), (x+w,y+h), (0,0,255), 2)
+		# cv2.circle(img, (int(x+w/2), y+h), radius=1, color=(0, 0, 255), thickness=-1)
+
+		#return ((x,y), (x+w,y+h)) # Use for testing with the cv_test.py
+
+        # TODO: use stereo camera here to convert pixel coordinates to return relative coordinates in world frame
+
+		return x, y, w, h, img # Actual return
+
+	return None, None, None, None, None
 
 def main(args=None):
-   rclpy.init(args=args)
-   cone_detector = StopLightDetector()
-   rclpy.spin(cone_detector)
-   rclpy.shutdown()
+    rclpy.init(args=args)
+    cone_detector = StopLightDetector()
+    rclpy.spin(cone_detector)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
-   main()
+    main()

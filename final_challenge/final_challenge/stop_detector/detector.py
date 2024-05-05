@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
 class StopSignDetector:
-  def __init__(self, threshold=0.5):
+  def __init__(self, threshold=0.1):
     # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5n', pretrained=True)
     self.model = torch.hub.load('/root/.yolo', 'custom', source='local', path='/root/.yolo/yolov5n.pt', force_reload=False)
     self.threshold = threshold
