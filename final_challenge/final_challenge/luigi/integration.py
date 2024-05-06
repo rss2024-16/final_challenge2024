@@ -57,6 +57,7 @@ class Nav2State(ActionState):
         return goal
 
     def handle_result(self, blackboard, result) -> str:
+        time.sleep(7) #pick up shell
         return SUCCEED
 
 
@@ -112,7 +113,7 @@ class Plan2State(ActionState):
         # For example, update blackboard or perform further actions
         blackboard.trajectory = result.trajectory
         
-        if self.count == 4:
+        if self.count == 4 + 1:
             return END
         return HAS_NEXT
 
@@ -315,7 +316,7 @@ def main():
     #     current_state = sm.get_current_state()
     #     print(f"Current state: {current_state}")
     #     time.sleep(5)  # Pause execution for 5 seconds
-    print(outcome)
+    print('outcome', outcome)
 
     # shutdown ROS 2
     rclpy.shutdown()
