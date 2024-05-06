@@ -222,7 +222,7 @@ class PathPlan(YasminNode):
     def publish_path(self,path):
         self.trajectory.updatePoints(path)
 
-        # self.traj_pub.publish(self.trajectory.toPoseArray())
+        self.traj_pub.publish(self.trajectory.toPoseArray())
         self.trajectory.publish_viz()
         self.path_pose_array = self.trajectory.toPoseArray()
 
