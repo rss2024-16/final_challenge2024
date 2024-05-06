@@ -141,6 +141,7 @@ class ParticleFilter(Node):
         Whenever you get sensor data use the sensor model to compute the particle probabilities. 
         Then resample the particles based on these probabilities
         '''
+        return
         with lock:
             if len(self.particles) > 0 and len(scan.ranges) > 0:
                 t1 = time.time()
@@ -167,7 +168,10 @@ class ParticleFilter(Node):
         Whenever you get odometry data use the motion model to update the particle positions
         '''
         with lock:
+            # self.get_logger().info(f'{odom_data}')
             if len(self.particles) > 0:
+                prev_particles = self.particles
+                # self.get_logger().info(f'{odom_data}')
                 # Let the particles drift
                 x = odom_data.twist.twist.linear.x
                 y = odom_data.twist.twist.linear.y
@@ -175,22 +179,16 @@ class ParticleFilter(Node):
                 # theta = np.arctan2(odom_data.twist.twist.linear.y,odom_data.twist.twist.linear.x)
                 theta = odom_data.twist.twist.angular.z
 
-                # if self.previous_pose is None:
-                #     self.previous_pose = -np.array([x,y,theta])
-                # else:
+                dt = self.get_clock().now().nanoseconds*1e-9 - self.prev_t
 
-                #self.get_logger().info(str(theta))
-                dv = -np.array([x,y,theta])# - self.previous_pose
-
-                # self.get_logger().info(f'-----\nX: {dx[0]}\nY: {dx[1]}\nTheta: {dx[2]}\n-----\n')
-                self.particles = self.motion_model.evaluate(self.particles, dv, self.t1)
+                dx = np.array([x,y,theta])
+                # self.get_logger().info(f'{dx*dt}')
+                self.particles :np.array = self.motion_model.evaluate(self.particles, dx, self.prev_t)
 
                 # Let the average drift
-                self.weighted_avg = self.motion_model.evaluate_noiseless(self.weighted_avg, dv, self.t1)
-
-                self.t1 = float(self.get_clock().now().nanoseconds)/1e9
-
-                self.motion_times.append(time.time() - t1)
+                self.weighted_avg = self.motion_model.evaluate_noiseless(self.weighted_avg, dx, self.prev_t)
+                # self.get_logger().info(f'{self.weighted_avg}')
+                self.prev_t = self.get_clock().now().nanoseconds*1e-9
 
     def pose_callback(self, pose_data):
         '''
