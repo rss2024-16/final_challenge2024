@@ -14,13 +14,13 @@ import time
 class ParkingController(Node):
     """
     A controller for parking 0.5-1 meter in front of the stop light when red
-    Listens for a relative cone location and publishes control commands.
+    Listens for a relative stop light location and publishes control commands.
     Can be used in the simulator and on the real robot.
 
     Params: Distance to goal
-    Publishes: Speed/angle command 
+    Publishes: Speed/angle command
         speed show slow down to 0, based on the distance
-        angle should be 'consistent' with the trajectory (i.e. not go off course) 
+        angle should be 'consistent' with the trajectory (i.e. not go off course)
 
     """
     def __init__(self):
@@ -76,9 +76,6 @@ class ParkingController(Node):
             return intersection_points[0]
         else:
             return intersection_points[1]
-
-
-    # Do we use homography for this or subscribe to the stereo camera?
 
     def stoplight_callback(self, msg):
         """
