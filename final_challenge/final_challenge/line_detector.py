@@ -8,7 +8,6 @@ import numpy as np
 from sensor_msgs.msg import Image
 # from geometry_msgs.msg import Point
 from vs_msgs.msg import ConeLocationPixel
-# from vs_msgs.srv import UvToXy
 
 class LineDetector(Node):
     def __init__(self):
@@ -18,7 +17,7 @@ class LineDetector(Node):
 
         self.subscriber = self.create_subscription(Image, "/zed/zed_node/rgb_gray/image_rect_gray", self.callback, 1)
         
-        self.publisher = self.create_publisher(ConeLocationPixel,"/relative_cone_px",5)
+        self.publisher = self.create_publisher(ConeLocationPixel, "/relative_cone_px",5)
 
         self.img_view = self.create_publisher(Image,'/line_image',1)
         self.cropped_img = self.create_publisher(Image,'/cropped',1)
@@ -37,11 +36,15 @@ class LineDetector(Node):
         midpoint = int(shape[0]//2)
         height = shape[1]
         pose = np.array( [midpoint,height] )
+        pose = np.array( [midpoint,height] )
 
         slopes = np.array( [abs( (yc2-yc1)/(xc2-xc1) ) for xc1,yc1,xc2,yc2 in lines] )
         lines = lines[(slopes > 0.2)]
         left_lines = lines[lines[:,0] <= midpoint]
         right_lines = lines[lines[:,0] > midpoint]
+
+        if len(left_lines) ==0 or len(right_lines) == 0:
+            return
 
         diff_left = left_lines[:,:2] - pose
         diff_right = right_lines[:,:2] - pose
@@ -53,17 +56,6 @@ class LineDetector(Node):
 
         return left_closest,right_closest
     
-    # def send_request(self,u,v):
-    #     self.req.u = int(u)
-    #     self.req.v = int(v)
-
-    #     self.future = self.client.call(self.req)
-    #     # self.get_logger().info('sent call')
-    #     # rclpy.spin_until_future_complete(self,self.future)
-    #     # rclpy.spin_once(self.future)
-    #     self.get_logger().info('received response')
-    #     res = self.future.result()
-    #     return res.x,res.y
 
     def callback(self,img_msg):
         '''
@@ -80,7 +72,7 @@ class LineDetector(Node):
 
         it also biases closer lines
         '''
-        self.get_logger().info('Got image')
+        # self.get_logger().info('Got image')
         t1 = self.get_clock().now().nanoseconds/1e9
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
 
@@ -88,8 +80,12 @@ class LineDetector(Node):
 
         height,width,_ = image.shape
 
-        # midpoint = width // 2
-        v = 100
+        midpoint = width // 2
+        # crop_mid_scale = 0.6
+        # mid_start = int( midpoint*crop_mid_scale )
+        # image[:,mid_start:width-mid_start, :] = 0
+
+        v = 200
 
         lower = int((1-self.crop_scale)*v)
         image[:lower,:,:] = 0
@@ -132,15 +128,24 @@ class LineDetector(Node):
 
         midpoint = int( width / 2 )
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
+        PIXEL_STEP = 80
+
+        start_point = int( .25*width )
+        end_point = int( width - start_point )
+
+        for x in range(start_point,end_point,PIXEL_STEP):
+            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
+
+        OFFSET = 35
+
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
 
         dst = cv2.Canny(thresh,50,200,None,3)
 
         cdstP = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
 
-        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,80,9) #these parameters work
+        linesP = cv2.HoughLinesP(dst,1,np.pi/180,50,None,60,9) #these parameters work
 
         if linesP is not None:
 
@@ -151,15 +156,20 @@ class LineDetector(Node):
             else:
                 left_closest,right_closest = closest
             
-            xc1r,yc1r,xc2r,yc2r = right_closest
-            xc1l,yc1l,xc2l,yc2l = left_closest
+            # x1,x2,x3,x4 = right_closest
+            # self.get_logger().info(f'slope: {(x4-x2)/(x3-x1)}')
+            x1r,y1r,x2r,y2r = right_closest
+            x1l,y1l,x2l,y2l = left_closest
 
-            avg = [ (xc2r+xc2l)/2, (yc2l+yc2r)/2 ]
+            # self.get_logger().info(f'left slope: {(x1l-x2l)/(y2l-y1l)}')
+            # self.get_logger().info(f'right slope: {(x1r-x2r)/(y1r-y2r)}')
 
-
+            mpr = [ (x1r+x2r)/2, (y1r+y2r)/2 ]
+            mpl = [ (x1l+x2l)/2, (y1l+y2l)/2 ]
+            avg = [(mpr[0]+mpl[0])/2, (mpl[1]+mpr[1])/2]
 
             msg = ConeLocationPixel()
-            msg.u = float(avg[0]) #publish to homography transformer
+            msg.u = float(avg[0]) + OFFSET #publish to line follower
             msg.v = float(avg[1])
 
             self.publisher.publish(msg)
@@ -168,19 +178,63 @@ class LineDetector(Node):
 
             cv2.line(cdstP, (left_closest[0], left_closest[1]), (left_closest[2], left_closest[3]), (0,0,255), 3, cv2.LINE_AA)
             cv2.line(cdstP, (right_closest[0], right_closest[1]), (right_closest[2], right_closest[3]), (0,0,255), 3, cv2.LINE_AA)
-
-            cv2.circle(cdstP,(int(avg[0]),int(avg[1])),radius=5,color=(255,0,0),thickness=1)
+        
+            cv2.circle(cdstP,(int(avg[0]+OFFSET),int(avg[1])),radius=5,color=(255,0,0),thickness=1)
             img_msg = self.bridge.cv2_to_imgmsg(cdstP, encoding="bgr8")
             self.img_view.publish(img_msg)
 
-            view = False
-            if view:
-                if linesP is not None:
-                    for i in range(0, len(linesP)):
-                        l = linesP[i][0]
-                        cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+        # linesP = cv2.HoughLinesP(dst,1,np.pi/180,75,None,50,10)
+        # lines = cv2.HoughLines(dst, 1, np.pi / 180, 150, None, 0, 0)
+        # print(linesP)
+        # PIXEL_THRESHOLD = 50
 
-            self.get_logger().info(f'Got lines in {self.get_clock().now().nanoseconds/1e9 - t1} seconds')
+            # print(linesP[:,0].shape)
+            # lines = linesP[:,0]
+            
+
+            # left_lines = lines[lines[:,0] <= midpoint]
+            # right_lines = lines[lines[:,0] > midpoint]
+            # left_avg = np.mean(left_lines,axis=0)
+            # right_avg = np.mean(right_lines,axis=0)
+
+            # nr = np.all(np.isnan(right_avg))
+            # nl = np.all(np.isnan(left_avg))
+
+            # if not nr and not nl:
+            # xc1,yc1,xc2,yc2 = np.array( (left_closest + right_closest)//2 ).astype(float)
+            # else:
+            #     self.get_logger().info('fuck')
+            #     return
+
+
+            # if xc2 is not None:
+
+            #     msg = ConeLocationPixel()
+            #     msg.u = xc2 #publish to line follower
+            #     msg.v = yc2
+
+            #     self.publisher.publish(msg)
+            #     view = False
+            #     if view:
+            #         if linesP is not None:
+            #             for i in range(0, len(linesP)):
+            #                 l = linesP[i][0]
+            #                 cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+
+            # xc1,xc2,yc1,yc2 = np.array( [ np.median(x0), np.median(xf), np.median(y0), np.median(yf) ] ).astype(int)
+            # cv2.line(cdstP,(xc1,yc1),(xc2,yc2),(255,0,0),3,cv2.LINE_AA)
+
+            #         # x_start = l
+            # #        rho = lines[i][0][0]
+            # #        theta = lines[i][0][1]
+            # #        a = np.cos(theta)
+            # #        b = np.sin(theta)
+            # #        x0 = a * rho
+            # #        y0 = b * rho
+            # #        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
+            # #        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
+            #         cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+            # self.get_logger().info(f'Got lines in {self.get_clock().now().nanoseconds/1e9 - t1} seconds')
         # cv2.imwrite('/home/racecar/racecar_ws/src/final_challenge2024/final_challenge/final_challenge/lines.jpg',cdstP)
 
 def main(args=None):
