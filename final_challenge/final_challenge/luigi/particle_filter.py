@@ -146,6 +146,7 @@ class ParticleFilter(Node):
         Whenever you get sensor data use the sensor model to compute the particle probabilities. 
         Then resample the particles based on these probabilities
         '''
+        return
         with lock:
             if len(self.particles) > 0 and len(scan.ranges) > 0:
                 ranges = scan.ranges
@@ -167,7 +168,10 @@ class ParticleFilter(Node):
         Whenever you get odometry data use the motion model to update the particle positions
         '''
         with lock:
+            # self.get_logger().info(f'{odom_data}')
             if len(self.particles) > 0:
+                prev_particles = self.particles
+                # self.get_logger().info(f'{odom_data}')
                 # Let the particles drift
                 x = odom_data.twist.twist.linear.x
                 y = odom_data.twist.twist.linear.y
@@ -175,11 +179,13 @@ class ParticleFilter(Node):
 
                 dt = self.get_clock().now().nanoseconds*1e-9 - self.prev_t
 
-                dx = np.array([x,y,theta]) * dt
-                self.particles :np.array = self.motion_model.evaluate(self.particles, dx)
+                dx = np.array([x,y,theta])
+                # self.get_logger().info(f'{dx*dt}')
+                self.particles :np.array = self.motion_model.evaluate(self.particles, dx, self.prev_t)
 
                 # Let the average drift
-                self.weighted_avg = self.motion_model.evaluate_noiseless(self.weighted_avg, dx)
+                self.weighted_avg = self.motion_model.evaluate_noiseless(self.weighted_avg, dx, self.prev_t)
+                # self.get_logger().info(f'{self.weighted_avg}')
                 self.prev_t = self.get_clock().now().nanoseconds*1e-9
 
     def pose_callback(self, pose_data):

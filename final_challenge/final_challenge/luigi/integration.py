@@ -111,6 +111,7 @@ class Plan2State(ActionState):
         # Handle the result based on your requirements
         # For example, update blackboard or perform further actions
         blackboard.trajectory = result.trajectory
+        
         if self.count == 4:
             return END
         return HAS_NEXT
@@ -128,8 +129,8 @@ class BasementPointPublisher(State):
         self.node = YasminNode() #yasmin node has multithreading so that the excute function can be called synchronously with publisher/subscriber
         self.shell_pub = self.node.create_publisher(MarkerArray, "/shell_points", 1)
         self.shell_sub = self.node.create_subscription(PointStamped, "/clicked_point", self.callback, 10)
-        self.pose_sub = self.node.create_subscription(PoseWithCovarianceStamped, "initialpose", self.pose_cb, 1)
-        self.map_sub = self.node.create_subscription(OccupancyGrid, "map", self.map_cb, 1)
+        self.pose_sub = self.node.create_subscription(PoseWithCovarianceStamped, "/initialpose", self.pose_cb, 1)
+        self.map_sub = self.node.create_subscription(OccupancyGrid, "/map", self.map_cb, 1)
         
         self.array = []
         self.point_count = 0
