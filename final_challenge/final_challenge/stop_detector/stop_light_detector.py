@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -31,7 +30,7 @@ class StopLightDetector(Node):
        # Subscribe to ZED camera RGB frames
        self.stoplight_pub = self.create_publisher(StopLightPixel, "/relative_stoplight_px", 10)
        self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
-
+       self.debug_pub = self.create_publisher(Image, "/stoplight_debug_img", 10)
        self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
        self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
 
@@ -60,13 +59,13 @@ class StopLightDetector(Node):
        if v == 0:
            v = 168.7
 
-       lower = int(.9*v)
+    #    lower = int(.9*v)
        upper = int(1.1*v)
        if upper > height:
            upper = height
        # image_cropped = image[lower:upper,:,:]
        image_copy = np.copy(image)
-       image_copy[0:lower,:,:] = 0
+    #    image_copy[0:lower,:,:] = 0
        image_copy[upper:,:,:] = 0
 
        x, y, w, h, img = sl_color_segmentation(image_copy,None)

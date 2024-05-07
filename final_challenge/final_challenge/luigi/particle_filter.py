@@ -2,6 +2,7 @@ from localization.sensor_model import SensorModel
 from localization.motion_model import MotionModel
 
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Float32
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, PoseArray, TransformStamped
 from sensor_msgs.msg import LaserScan
 
@@ -10,7 +11,6 @@ from ackermann_msgs.msg import AckermannDriveStamped # Test
 import numpy as np
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 import tf2_ros
-import time
 
 from rclpy.node import Node
 import rclpy
@@ -18,11 +18,14 @@ import rclpy
 import threading
 
 assert rclpy
+from yasmin_ros.yasmin_node import YasminNode
+
 
 class ParticleFilter(Node):
 
     def __init__(self):
         super().__init__("particle_filter")
+        # self.name = "particle_filter"
 
         self.declare_parameter('particle_filter_frame', "default")
         self.particle_filter_frame = self.get_parameter('particle_filter_frame').get_parameter_value().string_value
@@ -31,7 +34,7 @@ class ParticleFilter(Node):
         self.num_particles = self.get_parameter('num_particles').get_parameter_value().integer_value
 
         # For some reason no matter what I do it either tells me this parameter was already declared or is never declared
-        self.num_beams_per_particle = 99
+        self.num_beams_per_particle = 100
         # if self.has_parameter('num_beams_per_particle'):
         #     self.num_beams_per_particle = self.get_parameter('num_beams_per_particle').get_parameter_value().integer_value
         # else:
@@ -49,7 +52,8 @@ class ParticleFilter(Node):
         self.declare_parameter('odom_topic', "/odom")
         self.declare_parameter('scan_topic', "/scan")
 
-        self.particles = []
+        # self.particles = []
+        self.particles = np.empty((self.num_particles, 3))
 
         scan_topic = self.get_parameter("scan_topic").get_parameter_value().string_value
         odom_topic = self.get_parameter("odom_topic").get_parameter_value().string_value
@@ -58,7 +62,6 @@ class ParticleFilter(Node):
                                                   self.laser_callback,
                                                   1)
 
-        self.previous_pose = None
         self.odom_sub = self.create_subscription(Odometry, odom_topic,
                                                  self.odom_callback,
                                                  1)
@@ -87,7 +90,7 @@ class ParticleFilter(Node):
         self.poses_pub = self.create_publisher(PoseArray, "mcl", 1)
 
         self.viz_timer = self.create_timer(1, self.timer_cb)
-        self.pose_timer = self.create_timer(1.0/25.0, self.pose_cb)
+        self.pose_timer = self.create_timer(1.0/20.0, self.pose_cb)
 
         # Initialize the models
         self.motion_model = MotionModel(self)
@@ -108,10 +111,12 @@ class ParticleFilter(Node):
         # Test
         self.cmd_pub = self.create_publisher(AckermannDriveStamped, "/drive", 10)
 
-        self.t1 = float(self.get_clock().now().nanoseconds)/1e9
+        # Metrics
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        # self.converge_pub = self.create_publisher(Float32, 'converge', 10)
 
-        self.sensor_times = []
-        self.motion_times = []
+        self.prev_t = self.get_clock().now().nanoseconds*1e-9
 
     def part_to_pose(self, particle):
         '''
@@ -144,11 +149,9 @@ class ParticleFilter(Node):
         return
         with lock:
             if len(self.particles) > 0 and len(scan.ranges) > 0:
-                t1 = time.time()
                 ranges = scan.ranges
-                new_ranges = ranges[: : 11]
-                weights = self.sensor_model.evaluate(self.particles, new_ranges)
-                # self.get_logger().info(f'{weights}')
+                # new_ranges = ranges[: : 11]
+                weights = self.sensor_model.evaluate(self.particles, ranges)
 
                 # Update the new drifted average
                 weighted = np.average(self.particles[:, :2], axis=0, weights=weights)
@@ -156,12 +159,9 @@ class ParticleFilter(Node):
                 self.weighted_avg = np.array([weighted[0], weighted[1], theta_mean])
 
                 # Resample
-                indices = np.arange(self.num_particles)
+                indices = np.arange(len(self.particles))
                 indices = np.random.choice(indices, size=self.num_particles, p=weights)
-                self.particles = np.array([self.particles[i] for i in indices])
-                self.sensortimes.append(time.time()-t1)
-
-                self.sensor_times.append(time.time()-t1)
+                self.particles:np.array = np.array([self.particles[i] for i in indices])
 
     def odom_callback(self, odom_data):
         '''
@@ -175,8 +175,6 @@ class ParticleFilter(Node):
                 # Let the particles drift
                 x = odom_data.twist.twist.linear.x
                 y = odom_data.twist.twist.linear.y
-                # theta = 2*np.arccos(odom_data.pose.pose.orientation.w)
-                # theta = np.arctan2(odom_data.twist.twist.linear.y,odom_data.twist.twist.linear.x)
                 theta = odom_data.twist.twist.angular.z
 
                 dt = self.get_clock().now().nanoseconds*1e-9 - self.prev_t
@@ -205,11 +203,10 @@ class ParticleFilter(Node):
             pose_data.pose.pose.orientation.w))
             theta = orientation[2]
 
-            self.initial_pose = np.array([x,y,theta])
-            self.initial_positions.append(self.initial_pose)
-
             self.weighted_avg = np.array([x, y, theta])
-            self.convergence_timer = float(self.get_clock().now().nanoseconds)/1e9
+
+            #self.get_logger().info(f'\n-----\nReal x: {x}\nReal y: {y}\nReal theta: {theta}\n-----')
+            self.get_logger().info(str(pose_data.pose.pose))
 
             xs = x + np.random.default_rng().uniform(low=-1.0, high=1.0, size=self.num_particles)
             ys = y + np.random.default_rng().uniform(low=-1.0, high=1.0, size=self.num_particles)
@@ -219,11 +216,7 @@ class ParticleFilter(Node):
             self.particles = np.array([np.array([x,y,theta]) for x,y,theta in zip(xs,ys,thetas)])
 
     def timer_cb(self):
-        """
-        publish the particles to the /mcl topic
-        """
         if len(self.particles) > 0:
-
             poses_msg = PoseArray()
             poses_msg.header.frame_id = "/map"
 
@@ -232,36 +225,43 @@ class ParticleFilter(Node):
                 poses.append(self.part_to_pose(particle))
 
             poses_msg.poses = poses
-            # if self.poses_pub.get_num_connections() > 0:
             self.poses_pub.publish(poses_msg)
 
-            # Test
-            drive_cmd = AckermannDriveStamped()
-            drive_cmd.drive.speed = -0.5
-            drive_cmd.drive.steering_angle = 0.0
-            self.cmd_pub.publish(drive_cmd)
+            # drive_cmd = AckermannDriveStamped()
+            # drive_cmd.drive.speed = -0.5
+            # drive_cmd.drive.steering_angle = 0.0
+            # self.cmd_pub.publish(drive_cmd)
+
+            msg = Float32()
+            try:
+                transform = self.tf_buffer.lookup_transform('map', 'laser_model', rclpy.time.Time())
+                x = transform.transform.translation.x
+                y = transform.transform.translation.y
+                msg.data = np.sqrt((self.weighted_avg[0] - x)**2 + (self.weighted_avg[1] - y)**2)
+            except:
+                msg.data = 100.0
+
+            # self.converge_pub.publish(msg)
 
     def pose_cb(self):
-        """
-        Publish the average pose to the odom topic
-        """
+
         avg_pose = self.part_to_odom(self.weighted_avg)
         self.odom_pub.publish(avg_pose)
 
-        # Also publish a transform 
-        obj = TransformStamped()
-        obj.header.stamp = self.get_clock().now().to_msg()
-        obj.header.frame_id = "/map"
-        obj.child_frame_id = "/base_link" #self.particle_filter_frame
-        obj.transform.translation.x = self.weighted_avg[0]
-        obj.transform.translation.y = self.weighted_avg[1]
-        obj.transform.translation.z = 0.0
+        # # Also publish a transform 
+        # obj = TransformStamped()
+        # obj.header.stamp = self.get_clock().now().to_msg()
+        # obj.header.frame_id = "/map"
+        # obj.child_frame_id = "/base_link"
+        # obj.transform.translation.x = self.weighted_avg[0]
+        # obj.transform.translation.y = self.weighted_avg[1]
+        # obj.transform.translation.z = 0.0
 
-        obj.transform.rotation.x = 0.0
-        obj.transform.rotation.y = 0.0
-        obj.transform.rotation.z = np.sin(1/2 * self.weighted_avg[2])
-        obj.transform.rotation.w = np.cos(1/2 * self.weighted_avg[2])
-        self.br.sendTransform(obj)
+        # obj.transform.rotation.x = 0.0
+        # obj.transform.rotation.y = 0.0
+        # obj.transform.rotation.z = np.sin(1/2 * self.weighted_avg[2])
+        # obj.transform.rotation.w = np.cos(1/2 * self.weighted_avg[2])
+        # self.br.sendTransform(obj)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -272,9 +272,11 @@ def main(args=None):
     lock = threading.Lock()
 
     pf = ParticleFilter()
-    try:
-        rclpy.spin(pf)
-    except KeyboardInterrupt:
-        np.save('sensortimes',pf.sensor_times)
-        np.save('motiontimes',pf.motion_times)
+
+    rclpy.spin(pf)
     rclpy.shutdown()
+
+
+# ros2 launch localization localize.launch.xml
+# ros2 launch racecar_simulator simulate.launch.xml
+# ros2 launch wall_follower wall_follower.launch.xml

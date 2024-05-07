@@ -24,6 +24,11 @@ setup(
     entry_points={
         'console_scripts': [
             'stop_detector = final_challenge.stop_detector.stop_detector:main',
+            'parking_controller = final_challenge.stop_commands.parking_controller:main',
+            'parking_controller2 = final_challenge.stop_commands.parking_controller2:main',
+            'safety_controller = final_challenge.stop_commands.safety_controller:main',
+            'stop_light_detector = final_challenge.stop_detector.stop_light_detector:main',
+            'homography_transformer = final_challenge.homography_transformer:main',
             'line_detector = final_challenge.line_detector:main',
             'safety_controller = final_challenge.stop_commands.safety_controller:main',
             'basement_point_publisher = final_challenge.luigi.basement_point_publisher:main',

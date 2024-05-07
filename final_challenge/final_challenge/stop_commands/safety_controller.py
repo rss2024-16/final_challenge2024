@@ -35,12 +35,16 @@ class SafetyController(Node):
         # self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
         self.SAFETY_TOPIC = '/vesc/low_level/input/safety'
         # self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
-        self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
+        # self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
         # self.STOP_RANGE = self.get_parameter("stop_range").get_parameter_value().double_value
 
         self.sub_navigation = self.create_subscription(AckermannDriveStamped, self.NAVIGATION_TOPIC, self.navigation_callback, 10)
         self.sub_scan = self.create_subscription(LaserScan, self.SCAN_TOPIC, self.scan_callback, 10)
         self.pub_safety = self.create_publisher(AckermannDriveStamped, self.SAFETY_TOPIC, 10)
+
+        self.drive_pub = self.create_publisher(AckermannDriveStamped, '/vesc/high_level/input/nav_0', 10)
+
+        self.timer = self.create_timer(0.05, self.timer_callback)
 
         self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
 
@@ -48,6 +52,13 @@ class SafetyController(Node):
         # self.STOP_RANGE = 1.0
         self.VELOCITY = 4.0
         # self.VELOCITY = 0.0
+
+    def timer_callback(self):
+        # publish drive command at speed 3.0
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.drive.speed = 3.0
+        drive_cmd.drive.steering_angle = 0.0
+        self.drive_pub.publish(drive_cmd)
 
 
     def navigation_callback(self, msg: AckermannDriveStamped):
@@ -100,6 +111,7 @@ class SafetyController(Node):
             stop_cmd.drive.speed = 0.0
             stop_cmd.drive.steering_angle = 0.0
             self.pub_safety.publish(stop_cmd)
+            self.get_logger().info('STOPPED! stop_range: "%s"' % self.STOP_RANGE)
         # else:
         #     stop_cmd.drive.speed = self.VELOCITY
         #     stop_cmd.drive.steering_angle = 0.0

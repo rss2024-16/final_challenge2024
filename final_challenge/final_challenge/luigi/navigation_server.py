@@ -50,7 +50,7 @@ class NavigationActionServer(Node):
             feedback_msg.outcome = "success"
             self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
             goal_handle.publish_feedback(feedback_msg)
-            time.sleep(1) #pick up shell
+            # time.sleep(7) #pick up shell
             goal_handle.succeed()
             return NavigateToPose.Result()
         else:

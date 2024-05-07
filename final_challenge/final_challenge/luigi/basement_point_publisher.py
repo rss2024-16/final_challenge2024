@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+import numpy as np
 
 from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
 
@@ -41,7 +42,7 @@ class BasementPointPublisher(Node):
         self.get_logger().info(f"Published 3 points: {points_str}")
 
         # Reset Array
-        self.array = []
+        # self.array = []
     
 
 # Copyright (C) 2023  Miguel Ángel González Santamarta
@@ -60,102 +61,106 @@ class BasementPointPublisher(Node):
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import time
-from typing import List, Callable, Union, Type
+# import time
+# from typing import List, Callable, Union, Type
 
-from rclpy.node import Node
-from rclpy.subscription import Subscription
-from rclpy.qos import QoSProfile
+# from rclpy.node import Node
+# from rclpy.subscription import Subscription
+# from rclpy.qos import QoSProfile
 
-from yasmin import State
-from yasmin import Blackboard
-from yasmin_ros.yasmin_node import YasminNode
-from yasmin_ros.basic_outcomes import CANCEL
+# from yasmin import State
+# from yasmin import Blackboard
+# from yasmin_ros.yasmin_node import YasminNode
+# from yasmin_ros.basic_outcomes import CANCEL
 
 
-class MonitorState(State):
+# class MonitorState(State):
 
-    _node: Node
-    _sub: Subscription
-    _monitor_handler: Callable
+#     _node: Node
+#     _sub: Subscription
+#     _monitor_handler: Callable
 
-    msg_list: List = []
-    msg_queue: int
-    timeout: int
-    time_to_wait: float = 0.001
-    monitoring: bool = False
+#     msg_list: List = []
+#     msg_queue: int
+#     timeout: int
+#     time_to_wait: float = 0.001
+#     monitoring: bool = False
 
-    def __init__(
-        self,
-        msg_type: Type, #PointStamped
-        topic_name: str, #/clicked_point
-        outcomes: List[str], #SUCCEED
-        monitor_handler: Callable,
-        qos: Union[QoSProfile, int] = 10, 
-        msg_queue: int = 10, #3
-        timeout: int = None,
-        node: Node = None
-    ) -> None:
+#     def __init__(
+#         self,
+#         msg_type: Type, #PointStamped
+#         topic_name: str, #/clicked_point
+#         outcomes: List[str], #SUCCEED
+#         monitor_handler: Callable,
+#         qos: Union[QoSProfile, int] = 10, 
+#         msg_queue: int = 10, #3
+#         timeout: int = None,
+#         node: Node = None
+#     ) -> None:
 
-        if not timeout is None:
-            outcomes = [CANCEL] + outcomes
-        super().__init__(outcomes)
+#         if not timeout is None:
+#             outcomes = [CANCEL] + outcomes
+#         super().__init__(outcomes)
 
-        self._monitor_handler = monitor_handler
-        self.msg_queue = msg_queue
-        self.timeout = timeout
+#         self._monitor_handler = monitor_handler
+#         self.msg_queue = msg_queue
+#         self.timeout = timeout
 
-        if node is None:
-            self._node = YasminNode.get_instance()
-        else:
-            self._node = node
+#         if node is None:
+#             self._node = YasminNode.get_instance()
+#         else:
+#             self._node = node
 
-        self._sub = self._node.create_subscription(
-            msg_type, topic_name, self.__callback, qos)
+#         self._sub = self._node.create_subscription(
+#             msg_type, topic_name, self.__callback, qos)
 
-    def __callback(self, msg) -> None:
+#     def __callback(self, msg) -> None:
 
-        if self.monitoring:
-            self.msg_list.append(msg)
+#         if self.monitoring:
+#             self.msg_list.append(msg)
 
-            if len(self.msg_list) >= self.msg_queue:
-                self.msg_list.pop(0)
+#             if len(self.msg_list) >= self.msg_queue:
+#                 self.msg_list.pop(0)
 
-    def execute(self, blackboard: Blackboard) -> str:
+#     def execute(self, blackboard: Blackboard) -> str:
 
-        elapsed_time = 0
-        self.msg_list = []
-        self.monitoring = True
-        valid_transition = False
+#         elapsed_time = 0
+#         self.msg_list = []
+#         self.monitoring = True
+#         valid_transition = False
 
-        while not valid_transition:
-            time.sleep(self.time_to_wait)
+#         while not valid_transition:
+#             time.sleep(self.time_to_wait)
 
-            if not self.timeout is None:
+#             if not self.timeout is None:
 
-                if elapsed_time >= self.timeout:
-                    self.monitoring = False
-                    return CANCEL
+#                 if elapsed_time >= self.timeout:
+#                     self.monitoring = False
+#                     return CANCEL
 
-                elapsed_time += self.time_to_wait
+#                 elapsed_time += self.time_to_wait
 
-            if self.msg_list:
-                outcome = self._monitor_handler(blackboard, self.msg_list[0])
-                if outcome is None:
-                    self._node.get_logger().warn("Transition undeclared or declared but unhandled.")
-                    self.msg_list.pop(0)
-                if outcome is not None and outcome in self.get_outcomes():
-                    valid_transition = True
-                    break
+#             if self.msg_list:
+#                 outcome = self._monitor_handler(blackboard, self.msg_list[0])
+#                 if outcome is None:
+#                     self._node.get_logger().warn("Transition undeclared or declared but unhandled.")
+#                     self.msg_list.pop(0)
+#                 if outcome is not None and outcome in self.get_outcomes():
+#                     valid_transition = True
+#                     break
 
-        self.monitoring = False
-        return outcome
+#         self.monitoring = False
+#         return outcome
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = BasementPointPublisher()
-    rclpy.spin(node)
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        np.save('shell_points.npy', node.array)
     rclpy.shutdown()
 
 if __name__=="__main__":
