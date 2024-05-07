@@ -33,7 +33,9 @@ setup(
             'path_plan_server = final_challenge.luigi.path_plan_server:main',
             'particle_filter = final_challenge.luigi.particle_filter:main',
             'fake_image_pub = final_challenge.fakepublish:main',
-            'BasementPointPub = final_challenge.basement_point_publisher:main'
+            'BasementPointPub = final_challenge.basement_point_publisher:main',
+            'lane_projection = final_challenge.luigi.lane_projection:main',,
+            'example_service = final_challenge.luigi.example_service:main',
         ],
     },
 )

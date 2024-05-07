@@ -22,6 +22,7 @@ class BasementPointPublisher(Node):
     def callback(self, point_msg: PointStamped):
         x,y = point_msg.point.x, point_msg.point.y
         self.get_logger().info(f"Received point: {x}, {y}")
+
         self.array.append(Pose(position=Point(x=x, y=y, z=0.0)))
         
         if len(self.array) == 3:
