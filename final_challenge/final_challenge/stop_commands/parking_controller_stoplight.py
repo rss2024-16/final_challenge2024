@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -35,46 +34,36 @@ class SafetyControllerStopLight(Node):
         super().__init__("safety_controller")
 
         # # Declare parameters to make them available for use
-        # self.declare_parameter("scan_topic", "default")
         self.declare_parameter("safety_topic", "default")
         self.declare_parameter("navigation_topic", "default")
         self.declare_parameter("stop_range", "default")
 
         # Fetch constants from the ROS parameter server
-        # self.SCAN_TOPIC = self.get_parameter('scan_topic').get_parameter_value().string_value
-        # self.SCAN_TOPIC = '/scan'
-        # self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
-        self.DRIVE_TOPIC = '/vesc/high_level/input/nav0'
+        self.DRIVE_TOPIC = '/vesc/high_level/input/nav0' #we want this to override everything else
         # self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
-        self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
+        self.NAVIGATION_TOPIC = '/vesc/high_level/input/nav1' #this should be what the path planner is publishing to 
         # self.STOP_RANGE = self.get_parameter("stop_range").get_parameter_value().double_value
-        # self.drive_pub = self.create_publisher(AckermannDriveStamped, DRIVE_TOPIC, 10)
+        self.STOP_RANGE = 0.75
 
         self.sub_navigation = self.create_subscription(AckermannDriveStamped, self.NAVIGATION_TOPIC, self.navigation_callback, 10)
-        self.stoplight_sub = self.create_subscription(StopLightLocation, "/relative_stoplight",self.relative_stoplight_callback, 1)
+        self.stoplight_sub = self.create_subscription(StopLightLocation, "/relative_stoplight", self.relative_stoplight_callback, 1)
         self.pub_drive = self.create_publisher(AckermannDriveStamped, self.DRIVE_TOPIC, 10)
         self.odom_sub = self.create_subscription(Odometry, "/pf/pose/odom", self.localization_radius_callback, 1)
 
-        self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
-
         # is this the current current speed of the car?
         self.VELOCITY = 1.6
-        self.STOP_RANGE = 0.75
+        self.TURNING_ANGLE = 0.0
 
         self.stoplight_present = False
 
-        # self.VELOCITY = 4.0
-        # self.VELOCITY = 0.0
-
-
-    def navigation_callback(self, msg: AckermannDriveStamped):
+    def path_navigation_callback(self, msg: AckermannDriveStamped):
         '''
-        Process navigation commands here
-        For now, let's just pass them through
+        Intercept the current driving commands
+        We want the angle so we can remain on trajectorys
         '''
         # self.pub_safety.publish(msg)
-        # self.VELOCITY = msg.drive.speed
-        pass
+        self.VELOCITY = msg.drive.speed
+        self.TURNING_ANGLE = msg.drive.steering_angle
 
 
     def relative_stoplight_callback(self, msg):
@@ -98,12 +87,12 @@ class SafetyControllerStopLight(Node):
 
         pose = [self.relative_x, self.relative_y]
 
-        stoplight_present = self.relative_stoplight_callback()
+        stoplight_present = self.stoplight_present
 
         stop_cmd = AckermannDriveStamped()
         offset = 0.5
 
-        distances = []
+        distances_from_stoplight = []
 
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
@@ -122,15 +111,16 @@ class SafetyControllerStopLight(Node):
         # loop through each of the coordinates for the stop lights
         for coord in trial_1:
             # calculate the euclidean distance between the robot's pose and the coordinates
-            difference = lambda coord, pose: np.linalg.norm(np.array([coord[0] - pose[0], coord[1] - pose[1]]))
-            distances.append(difference)
+            # difference = lambda coord, pose: np.linalg.norm(np.array([coord[0] - pose[0], coord[1] - pose[1]]))
+            distance = ((coord[0] - pose[0])**2 + (coord[1] - pose[1])**2)**0.5
+            distances_from_stoplight.append(distance)
 
         # check if any of the calculated distances are less than a meter
-        for dist in distances:
-            if dist <= 1 and stoplight_present == True:
-                # self.get_logger().info('stopping')
+        for distance in distances_from_stoplight:
+            if distance <= 1 and stoplight_present == True:
+                self.get_logger().info('stopping')
                 stop_cmd.drive.speed = 0.0
-                stop_cmd.drive.steering_angle = 0.0
+                stop_cmd.drive.steering_angle = self.TURNING_ANGLE
                 self.pub_drive.publish(stop_cmd)
             else:
                 pass

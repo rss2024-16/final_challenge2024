@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -35,7 +34,7 @@ class SafetyController(Node):
         # self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
         self.SAFETY_TOPIC = '/vesc/low_level/input/safety'
         # self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
-        # self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
+        self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
         # self.STOP_RANGE = self.get_parameter("stop_range").get_parameter_value().double_value
 
         self.sub_navigation = self.create_subscription(AckermannDriveStamped, self.NAVIGATION_TOPIC, self.navigation_callback, 10)
@@ -51,7 +50,7 @@ class SafetyController(Node):
         # self.VELOCITY = 1.6
         # self.STOP_RANGE = 1.0
         self.VELOCITY = 4.0
-        # self.VELOCITY = 0.0
+        self.TURNING_ANGLE = 0.0
 
     def timer_callback(self):
         # publish drive command at speed 3.0
@@ -67,7 +66,8 @@ class SafetyController(Node):
         For now, let's just pass them through
         '''
         # self.pub_safety.publish(msg)
-        # self.VELOCITY = msg.drive.speed
+        self.VELOCITY = msg.drive.speed
+        self.TURNING_ANGLE = msg.drive.steering_angle
         pass
 
 
@@ -87,6 +87,8 @@ class SafetyController(Node):
 
         #laser scans counterclockwise
         #part 1: filter the ranges data to just the front
+
+
         ranges = ranges[2*length//5 : 3*length//5]
         distances : np.ndarray = np.array(ranges)
 

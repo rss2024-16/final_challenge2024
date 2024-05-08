@@ -26,8 +26,7 @@ setup(
             'stop_detector = final_challenge.stop_detector.stop_detector:main',
             'parking_controller = final_challenge.stop_commands.parking_controller:main',
             'parking_controller_stoplight = final_challenge.stop_commands.parking_controller_stoplight:main',
-            'parking_controller_stopsign = final_challenge.stop_commands.parking_controller_stopsign:main'
-            'safety_controller = final_challenge.stop_commands.safety_controller:main',
+            'parking_controller_stopsign = final_challenge.stop_commands.parking_controller_stopsign:main',
             'stop_light_detector = final_challenge.stop_detector.stop_light_detector:main',
             'homography_transformer = final_challenge.homography_transformer:main',
             'line_detector = final_challenge.line_detector:main',
@@ -40,7 +39,7 @@ setup(
             'particle_filter = final_challenge.luigi.particle_filter:main',
             'fake_image_pub = final_challenge.fakepublish:main',
             'BasementPointPub = final_challenge.basement_point_publisher:main',
-            'lane_projection = final_challenge.luigi.lane_projection:main',,
+            'lane_projection_server = final_challenge.luigi.lane_projection_server:main',
             'example_service = final_challenge.luigi.example_service:main',
         ],
     },

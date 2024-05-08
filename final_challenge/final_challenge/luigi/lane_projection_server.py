@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -9,7 +7,7 @@ from tf_transformations import quaternion_from_euler
 
 from path_planning.utils import LineTrajectory
 
-class LaneProjection(Node):
+class LaneProjectionServer(Node):
     """
     Takes in a point from the map frame and projects it to the desired lane
     Inputs:
@@ -19,7 +17,7 @@ class LaneProjection(Node):
     projection - pose in map frame on lane
     """
     def __init__(self):
-        super().__init__("lane_project")
+        super().__init__("lane_projection_server")
 
         self.srv = self.create_service(LaneProject, 'lane_project', self.project_callback)
 
@@ -113,14 +111,12 @@ class LaneProjection(Node):
         nearest_point = (nearest_x, nearest_y)
         
         return nearest_point
-
-        
         
 
 def main(args=None):
     rclpy.init(args=args)
 
-    service = LaneProjection()
+    service = LaneProjectionServer()
 
     rclpy.spin(service)
 
