@@ -22,6 +22,7 @@ from yasmin_viewer import YasminViewerPub
 from nav_msgs.msg import OccupancyGrid
 
 from path_planning.utils import Map
+from .utils import LaneProjection
 from .basement_point_publisher import BasementPointPublisher
 
 HAS_NEXT = "has_next"
@@ -140,27 +141,37 @@ class ProjectNextDestination(ServiceState):
 
         self.count = 0
 
-    def create_request_handler(self, blackboard: Blackboard) -> LaneProject.Request:
+        self.node.get_logger().info("Projection Initialized")
 
+    def execute(self, blackboard: Blackboard) -> str:
+        """
+        output:
+        blackboard.projection = projection of next location
+
+        outcomes:
+        "in_front": next goal is in front of the car
+        "behind": next goal is behind the car
+        "end": no more goals to project
+        """
         initial_position: Pose = blackboard.init_pose
         shell_locations: PoseArray = blackboard.shell_locations
+        car_side: bool = blackboard.car_side #True if car on right side
+        shell_sides = blackboard.shell_sides
 
         poses = shell_locations.poses
-        poses = poses + [initial_position]
-        #destinations: 1st is shell_1, 2nd is shell_2, 3rd is shell_3, 4th is starting point
+        poses = [initial_position] + poses
+        
+        s = poses[self.count]
+        t = poses[(self.count + 1) % len(poses)] 
 
-        req = LaneProject.Request()
-        req.right = True
-        req.location = poses[self.count]
+        projection = self.node.project(t, car_side) 
+        blackboard.projection = projection
         self.count += 1
-        return req
-
-    def response_handler(self, blackboard: Blackboard, response: LaneProject.Response):
-        """
-        found projection
-        """
-        blackboard.projection = response.projection
-        return SUCCEED
+        if self.count == 4 + 1:
+            return END
+        if is_behind_us(blackboard):
+            return "behind"
+        return "in_front"
 
 def is_behind_us(blackboard: Blackboard) -> bool:
     """
@@ -203,27 +214,69 @@ def main():
         }
     )
 
-    #this would be trajectory planning + following
     # nav_sm.add_state(
-    #     "PROJECTING_NEXT_SHELL",
-    #     class,
+    #     "PROJECTING_NEXT_GOAL",
+    #     Project(),
     #     transitions={
-    #         SUCCEED: "PLANNING_PATH"
+    #         SUCCEED: "PLANNING_PATH",
+    #     }
+    # )    
+    # nav_sm.add_state(
+    #     "PLANNING_PATH",
+    #     Plan2State(), #pure pursuit + localization at the same time...
+    #     transitions={
+    #         END: SUCCEED,
+    #         HAS_NEXT: "FOLLOWING_PATH"
     #     }
     # )
+    # nav_sm.add_state(
+    #     "FOLLOWING_PATH",
+    #     Nav2State(), #pure pursuit + localization at the same time...
+    #     transitions={
+    #         SUCCEED: "PLANNING_PATH", 
+    #         CANCEL: CANCEL,
+    #         ABORT: ABORT
+    #     }
+    # )
+
+    ####################### NEW STATE MACHINE ############################
     nav_sm.add_state(
-        "PLANNING_PATH",
-        Plan2State(), #pure pursuit + localization at the same time...
+        "PROJECTING_NEXT_GOAL",
+        Project(),
         transitions={
+            "in_front": "FOLLOWING_LANE",
+            "behind": "TURN_AROUND",
             END: SUCCEED,
-            HAS_NEXT: "FOLLOWING_PATH"
+            CANCEL: CANCEL,
+            ABORT: ABORT
+        }
+    )
+    #blackboard.projection: projection of next goal onto the car's lane
+
+    nav_sm.add_state(
+        "FOLLOWING_LANE",
+        Nav2State(), #PID
+        transitions={
+            'within_radius': "PLANNING_PATH",
+            CANCEL: CANCEL,
+            ABORT: ABORT
         }
     )
     nav_sm.add_state(
-        "FOLLOWING_PATH",
-        Nav2State(), #pure pursuit + localization at the same time...
+        "PLANNING_PATH",
+        Plan2State(), #BFS
         transitions={
-            SUCCEED: "PLANNING_PATH", 
+            SUCCEED: "FOLLOWING_PATH",
+            CANCEL: CANCEL,
+            ABORT: ABORT
+        }
+    )
+    # blackboard.trajectory: new trajectory to follow to the goal
+    nav_sm.add_state(
+        "FOLLOWING_PATH",
+        Nav2State(), #PID
+        transitions={
+            SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,
             ABORT: ABORT
         }

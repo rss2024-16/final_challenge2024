@@ -39,6 +39,9 @@ setup(
             'particle_filter = final_challenge.luigi.particle_filter:main',
             'fake_image_pub = final_challenge.fakepublish:main',
             'BasementPointPub = final_challenge.basement_point_publisher:main',
+            'homography_service = final_challenge.homography_service:main',
+            'homograpy_client = final_challenge.homography_client:main',
+            'pid_controller = final_challenge.luigi.PID:main'
             'lane_projection_server = final_challenge.luigi.lane_projection_server:main',
             'example_service = final_challenge.luigi.example_service:main',
         ],

@@ -29,8 +29,12 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/StopSign.msg"
+  "msg/StopLightLocation.msg"
+  "msg/StopLightPixel.msg"
   "action/FindPath.action"
   "action/NavigateToPose.action"
+  "srv/UvToXy.srv"
+  "srv/XyToUv.srv"
   "srv/LaneProject.srv"
   DEPENDENCIES geometry_msgs std_msgs sensor_msgs 
  )

@@ -16,8 +16,11 @@ class SignDetector(Node):
         super().__init__("stop_detector")
         self.detector = StopSignDetector()
         self.subscriber = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.callback, 1)
-        self.publisher = self.create_publisher(StopSign,"/stop",1)
+        # self.publisher = self.create_publisher(StopSign,"/stop",1)
         self.bridge = CvBridge()
+
+
+        self.box_publisher = self.create_publisher(Image,"/stop_bb",10)
 
         self.get_logger().info("Stop Detector Initialized")
 
@@ -25,11 +28,20 @@ class SignDetector(Node):
         # Process image with CV Bridge
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
         is_stop, location = self.detector.predict(image)
-        msg = StopSign()
-        msg.is_stop = is_stop
+        # msg = StopSign()
+        # msg.is_stop = is_stop
         #this probs needs debugging
-        msg.bounding_box = location
-        self.publisher.publish(msg)
+        location = [int(coord) for coord in location]
+
+        # self.get_logger().info(f'location: {location[0]}')
+        # self.get_logger().info(f'type: {type(location[0])}')
+
+        # msg.bounding_box = location
+        # self.publisher.publish(msg)
+
+        img = cv2.rectangle(image, (location[0], location[1]), (location[2], location[3]), (0,0,255), 10)
+        stop_bb_msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
+        self.box_publisher.publish(stop_bb_msg)
 
 def main(args=None):
     rclpy.init(args=args)
