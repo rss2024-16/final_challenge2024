@@ -67,7 +67,9 @@ class StopLightDetector(Node):
        image_copy = np.copy(image)
     #    image_copy[0:lower,:,:] = 0
        image_copy[upper:,:,:] = 0
-
+        # Crop the left boundary of the image
+       image_copy[:, :upper, :] = 0
+    #    image_copy[upper:, :upper, :] = 0
        x, y, w, h, img = sl_color_segmentation(image_copy,None)
 
        if x is not None:

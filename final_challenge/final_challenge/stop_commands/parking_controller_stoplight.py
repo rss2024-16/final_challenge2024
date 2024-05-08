@@ -58,8 +58,8 @@ class SafetyControllerStopLight(Node):
         self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
 
         # is this the current current speed of the car?
-        self.VELOCITY = 1.6
-        self.STOP_RANGE = 0.75
+        # self.VELOCITY = 1.6
+        # self.STOP_RANGE = 0.75
 
         self.stoplight_present = False
 
@@ -73,8 +73,7 @@ class SafetyControllerStopLight(Node):
         For now, let's just pass them through
         '''
         # self.pub_safety.publish(msg)
-        # self.VELOCITY = msg.drive.speed
-        pass
+        self.VELOCITY = msg.drive.speed
 
 
     def relative_stoplight_callback(self, msg):
@@ -92,18 +91,19 @@ class SafetyControllerStopLight(Node):
 
 
     def localization_radius_callback(self,msg):
+        # offset = 0.5
+        offset = 1
+
+        distances = []
+
+        pose = [self.relative_x, self.relative_y]
 
         self.relative_x = msg.pose.pose.orientation.x
         self.relative_y = msg.pose.pose.orientation.y
 
-        pose = [self.relative_x, self.relative_y]
-
         stoplight_present = self.relative_stoplight_callback()
 
         stop_cmd = AckermannDriveStamped()
-        offset = 0.5
-
-        distances = []
 
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
@@ -127,7 +127,7 @@ class SafetyControllerStopLight(Node):
 
         # check if any of the calculated distances are less than a meter
         for dist in distances:
-            if dist <= 1 and stoplight_present == True:
+            if dist < 1 and stoplight_present == True:
                 # self.get_logger().info('stopping')
                 stop_cmd.drive.speed = 0.0
                 stop_cmd.drive.steering_angle = 0.0

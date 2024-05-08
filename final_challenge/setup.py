@@ -40,7 +40,7 @@ setup(
             'particle_filter = final_challenge.luigi.particle_filter:main',
             'fake_image_pub = final_challenge.fakepublish:main',
             'BasementPointPub = final_challenge.basement_point_publisher:main',
-            'lane_projection = final_challenge.luigi.lane_projection:main',,
+            'lane_projection = final_challenge.luigi.lane_projection:main',
             'example_service = final_challenge.luigi.example_service:main',
         ],
     },
