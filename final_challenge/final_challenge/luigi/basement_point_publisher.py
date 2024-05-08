@@ -22,9 +22,6 @@ from nav_msgs.msg import OccupancyGrid
 
 from .utils import Map, LineTrajectory
 
-RIGHT = "right"
-LEFT = "left"
-
 class BasementPointPublisher(State):
     '''
     Yasmin state node that publishes a list of "shell" points
@@ -44,8 +41,8 @@ class BasementPointPublisher(State):
         self.lane_pub = self.node.create_publisher(MarkerArray, "/lane", 1)
         
         self.array = []
-        self.shell_sides = {}
-        self.car_side = None
+        self.shell_sides = {} #Right is True, Left is False
+        self.car_side = True #Right is True, Left is False
         self.point_count = 0
         self.time_to_wait = 5
         self.NUM_SHELLS = 3
@@ -92,9 +89,9 @@ class BasementPointPublisher(State):
                                   
         angle, clockwise = self.angle_between(vector_to_shell, vector_to_lane)
         if clockwise > 0:
-            return RIGHT
+            return True
         else:
-            return LEFT
+            return False
 
     def angle_between(self, v1, v2):
         dot_product = np.dot(v1, v2)

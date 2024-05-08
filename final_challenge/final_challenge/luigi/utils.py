@@ -78,7 +78,7 @@ class LaneProjection():
         projection.orientation.z = q[2]
         projection.orientation.w = q[3]
 
-        return projection
+        return projection, nearest_index
 
     def find_nearest(self, point, segments):
         """
