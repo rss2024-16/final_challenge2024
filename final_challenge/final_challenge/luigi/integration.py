@@ -127,7 +127,7 @@ class Plan2State(ActionState):
         if self.count == 4 + 1:
             return END
         return HAS_NEXT
-    
+
 class ProjectNextDestination(ServiceState):
     def __init__(self) -> None:
         super().__init__(
