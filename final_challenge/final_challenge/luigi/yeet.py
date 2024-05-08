@@ -95,13 +95,14 @@ class PurePursuit(YasminNode):
         self.closest = self.create_publisher(Marker,'/closest',1)
         self.segments = self.create_publisher(MarkerArray, '/segments', 1)
 
+        self.reached_end = False
+
         self.last_points = None
         # self.turning_points = self.create_publisher(MarkerArray, '/turning_points', 1)
 
     @property
     def success(self): 
-        if self._succeed == True:
-            self.get_logger().info(f'Success!')
+        self.reached_end = False
         return self._succeed
 
     def reset_success(self):
@@ -265,12 +266,12 @@ class PurePursuit(YasminNode):
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
             else:
-                error_from_trajectory = closest_point[1]
-                slope = closest_point[1]/closest_point[0] #y /x 
+                # error_from_trajectory = closest_point[1]
+                # slope = closest_point[1]/closest_point[0] #y /x 
                 alpha = np.arctan2(closest_point[1],closest_point[0]) #x is in front
                 curvature = 2*np.sin(alpha) / self.lookahead
 
-                # self.get_logger().info(f'curvature: {curvature}')
+                self.get_logger().info(f'curvature: {curvature}')
                 # if abs(slope) > 4:
                 #     #turn coming up
                 #     #publish car's current position to see where it starts to turn
@@ -280,36 +281,14 @@ class PurePursuit(YasminNode):
                 #     self.turning_points.publish(markerarray)
                 # self.get_logger().info(f'slope: {slope}')
 
-                # self.speed = 4.0 * np.exp(-.9*abs(slope))
-                # dist = np.linalg(closest_point_intersect[0], closest_point_intersect[1])
-                # self.speed = min(max(dist, 2.0), 5.0)
-
-                # if self.speed < self.MIN_SPEED:
-                    # self.speed = self.MIN_SPEED
                 speed_index = 0
-                # if curvature < np.pi/8:
-                #     speed_index = 2
-                # elif np.pi/8 < curvature < np.pi/4:
-                #     speed_index = 1
+                if abs(curvature) <= 0.2:
+                    speed_index = 2
+                elif 0.2 < abs(curvature) < 0.6:
+                    speed_index = 1
 
                 self.speed = self.speeds[speed_index]
                 self.lookahead = self.lookaheads[speed_index]
-
-                # self.get_logger().info(f'intersect dist: {intersect_distance}')
-                # self.lookahead = intersect_distance if intersect_distance is not None and\
-                                # intersect_distance < self.speed else self.speed*.5
-
-                # self.lookahead = 1.0
-                # self.lookahead = self.speed/2
-                # self.lookahead = 3.0
-                # self.speed = 4.0
-
-                # if self.lookahead < self.MIN_LOOKAHEAD:
-                #     self.lookahead = self.MIN_LOOKAHEAD
-
-                # if self.lookahead > distance_to_goal:
-                #     self.lookahead = distance_to_goal
-                #finding the circle intersection 
 
                 success = False
                 i = index
@@ -328,7 +307,12 @@ class PurePursuit(YasminNode):
                             segment_end = relative_points[i]
                             success, intersect = self.find_circle_intersection(np.array([0,0,0]), self.lookahead, segment_start, segment_end, R)
 
+                        if np.all(segment_end == relative_points[-1]):
+                            self.reached_end = True
                         i += 1
+                        if i == len(relative_points) - 1 and self.reached_end:
+                            success, intersect = (True,relative_points[-1])
+
                         # self.publish_marker_array(self.relative_point_pub, segment, R, self.current_pose)
 
                 if not success:
