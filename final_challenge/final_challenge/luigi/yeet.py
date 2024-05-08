@@ -11,7 +11,7 @@ import tf2_ros
 
 import numpy as np
 
-from .utils import LineTrajectory
+from path_planning.utils import LineTrajectory
 import math
 import time
 
