@@ -10,7 +10,7 @@ from fc_msgs.msg import StopLightLocation
 
 import math
 
-class SafetyController(Node):
+class SafetyControllerStopLight(Node):
     def __init__(self):
         '''
         The below section on muxes will help you decide which topic your safety controller
@@ -98,7 +98,6 @@ class SafetyController(Node):
 
         pose = [self.relative_x, self.relative_y]
 
-
         stoplight_present = self.relative_stoplight_callback()
 
         stop_cmd = AckermannDriveStamped()
@@ -128,11 +127,13 @@ class SafetyController(Node):
 
         # check if any of the calculated distances are less than a meter
         for dist in distances:
-            if dist < 1 and stoplight_present == True:
+            if dist <= 1 and stoplight_present == True:
                 # self.get_logger().info('stopping')
                 stop_cmd.drive.speed = 0.0
                 stop_cmd.drive.steering_angle = 0.0
                 self.pub_drive.publish(stop_cmd)
+            else:
+                pass
 
         # else:
         #     stop_cmd.drive.speed = self.VELOCITY
@@ -152,9 +153,9 @@ class SafetyController(Node):
 def main():
 
     rclpy.init()
-    safety_controller = SafetyController()
-    rclpy.spin(safety_controller)
-    safety_controller.destroy_node()
+    safety_controller_stoplight = SafetyControllerStopLight()
+    rclpy.spin(safety_controller_stoplight)
+    safety_controller_stoplight.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':

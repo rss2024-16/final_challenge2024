@@ -10,7 +10,7 @@ from fc_msgs.msg import StopLightLocation
 
 import math
 
-class SafetyController(Node):
+class SafetyControllerStopSign(Node):
     def __init__(self):
         '''
         The below section on muxes will help you decide which topic your safety controller
@@ -77,7 +77,7 @@ class SafetyController(Node):
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
 
-        if  msg.x_pos < self.STOP_RANGE:
+        if  msg.x_pos <=  self.STOP_RANGE:
             # Example threshold, adjust as needed
             # self.get_logger().info('stopping')
             stop_cmd.drive.speed = 0.0
@@ -104,9 +104,9 @@ class SafetyController(Node):
 def main():
 
     rclpy.init()
-    safety_controller = SafetyController()
-    rclpy.spin(safety_controller)
-    safety_controller.destroy_node()
+    safety_controller_stopsign = SafetyControllerStopSign()
+    rclpy.spin(safety_controller_stopsign)
+    safety_controller_stopsign.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
