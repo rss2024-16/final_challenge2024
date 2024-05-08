@@ -41,12 +41,23 @@ class SafetyController(Node):
         self.sub_scan = self.create_subscription(LaserScan, self.SCAN_TOPIC, self.scan_callback, 10)
         self.pub_safety = self.create_publisher(AckermannDriveStamped, self.SAFETY_TOPIC, 10)
 
+        self.drive_pub = self.create_publisher(AckermannDriveStamped, '/vesc/high_level/input/nav_0', 10)
+
+        self.timer = self.create_timer(0.05, self.timer_callback)
+
         self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
 
         # self.VELOCITY = 1.6
         # self.STOP_RANGE = 1.0
         self.VELOCITY = 4.0
-        # self.VELOCITY = 0.0
+        self.TURNING_ANGLE = 0.0
+
+    def timer_callback(self):
+        # publish drive command at speed 3.0
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.drive.speed = 3.0
+        drive_cmd.drive.steering_angle = 0.0
+        self.drive_pub.publish(drive_cmd)
 
 
     def navigation_callback(self, msg: AckermannDriveStamped):
@@ -55,7 +66,8 @@ class SafetyController(Node):
         For now, let's just pass them through
         '''
         # self.pub_safety.publish(msg)
-        # self.VELOCITY = msg.drive.speed
+        self.VELOCITY = msg.drive.speed
+        self.TURNING_ANGLE = msg.drive.steering_angle
         pass
 
 
@@ -75,6 +87,8 @@ class SafetyController(Node):
 
         #laser scans counterclockwise
         #part 1: filter the ranges data to just the front
+
+
         ranges = ranges[2*length//5 : 3*length//5]
         distances : np.ndarray = np.array(ranges)
 
@@ -99,6 +113,7 @@ class SafetyController(Node):
             stop_cmd.drive.speed = 0.0
             stop_cmd.drive.steering_angle = 0.0
             self.pub_safety.publish(stop_cmd)
+            self.get_logger().info('STOPPED! stop_range: "%s"' % self.STOP_RANGE)
         # else:
         #     stop_cmd.drive.speed = self.VELOCITY
         #     stop_cmd.drive.steering_angle = 0.0

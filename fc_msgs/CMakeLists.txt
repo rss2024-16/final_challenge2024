@@ -35,6 +35,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/NavigateToPose.action"
   "srv/UvToXy.srv"
   "srv/XyToUv.srv"
+  "srv/LaneProject.srv"
   DEPENDENCIES geometry_msgs std_msgs sensor_msgs 
  )
 

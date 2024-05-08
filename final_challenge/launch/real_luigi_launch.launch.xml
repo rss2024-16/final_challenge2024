@@ -2,18 +2,30 @@
 
   <!-- Launch the parking controller on the real robot. Launches safety controller, controller node, cone detection node, and the homography transformer -->
   <!-- Edit this to launch your safety controller you implemented in Lab 3! -->
-  <!-- <node pkg="final challenge" name="safety_controller" exec="safety_controller" output="screen">
+  <node pkg="final_challenge" name="safety_controller" exec="safety_controller" output="screen">
   </node>
 
-  <node pkg="final challenge" name="parking_controller" exec="parking_controller" output="screen">
+  <!-- <node pkg="final_challenge" name="parking_controller" exec="parking_controller" output="screen">
+  	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
+  </node> -->
+
+  <node pkg="final_challenge" name="parking_controller_stoplight" exec="parking_controller_stoplight" output="screen">
+  	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
+  </node>
+
+  <node pkg="final_challenge" name="parking_controller_stopsign" exec="parking_controller_stopsign" output="screen">
   	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
   </node> -->
 
   <node pkg="final_challenge" name="stop_light_detector" exec="stop_light_detector" output="screen">
   </node>
-<!-- 
-  <node pkg="final challenge" name="homography_transformer" exec="homography_transformer" output="screen">
-  </node> -->
+
+  <node pkg="final_challenge" name="homography_transformer" exec="homography_transformer" output="screen">
+  </node>
+
+    <node pkg="localization" exec="particle_filter" name="particle_filter" output="screen">
+        <param from="$(find-pkg-share path_planning)/config/sim/pf_config.yaml"/>
+    </node>
 
   <node pkg="image_transport" name="republish" exec="republish" args="raw in:=/cone_debug_img out:=/cone_debug_img_compressed" output="screen"></node>
 

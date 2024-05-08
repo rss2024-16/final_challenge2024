@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+#!/usr/bin/env python
+
+>>>>>>> 6187a7c7b6e11c0a1b40c22731b3cd65aa1efdb1
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -28,9 +33,14 @@ class StopLightDetector(Node):
        # Subscribe to ZED camera RGB frames
        self.stoplight_pub = self.create_publisher(StopLightPixel, "/relative_stoplight_px", 10)
        self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
+<<<<<<< HEAD
        self.box_publisher = self.create_publisher(Image,"/stop_light_bb",10)
 
     #    self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
+=======
+       self.debug_pub = self.create_publisher(Image, "/stoplight_debug_img", 10)
+       self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
+>>>>>>> 6187a7c7b6e11c0a1b40c22731b3cd65aa1efdb1
        self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
 
        self.get_logger().info("Stop Light Detector Initialized")
@@ -59,6 +69,7 @@ class StopLightDetector(Node):
     #        v = 168.7
 
     #    lower = int(.9*v)
+<<<<<<< HEAD
     #    upper = int(1.1*v)
     #    if upper > height:
         #    upper = height
@@ -67,6 +78,18 @@ class StopLightDetector(Node):
     #    image_copy[0:lower,:,:] = 0
     #    image_copy[upper:,:,:] = 0
 
+=======
+       upper = int(1.1*v)
+       if upper > height:
+           upper = height
+       # image_cropped = image[lower:upper,:,:]
+       image_copy = np.copy(image)
+    #    image_copy[0:lower,:,:] = 0
+       image_copy[upper:,:,:] = 0
+        # Crop the left boundary of the image
+       image_copy[:, :upper, :] = 0
+    #    image_copy[upper:, :upper, :] = 0
+>>>>>>> 6187a7c7b6e11c0a1b40c22731b3cd65aa1efdb1
        x, y, w, h, img = sl_color_segmentation(image_copy,None)
 
        if x is not None:
