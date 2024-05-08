@@ -51,8 +51,8 @@ class SafetyControllerStopLight(Node):
         self.odom_sub = self.create_subscription(Odometry, "/pf/pose/odom", self.localization_radius_callback, 1)
 
         # is this the current current speed of the car?
-        self.VELOCITY = 1.6
-        self.TURNING_ANGLE = 0.0
+        # self.VELOCITY = 1.6
+        # self.STOP_RANGE = 0.75
 
         self.stoplight_present = False
 
@@ -81,18 +81,19 @@ class SafetyControllerStopLight(Node):
 
 
     def localization_radius_callback(self,msg):
+        # offset = 0.5
+        offset = 1
+
+        distances = []
+
+        pose = [self.relative_x, self.relative_y]
 
         self.relative_x = msg.pose.pose.orientation.x
         self.relative_y = msg.pose.pose.orientation.y
 
-        pose = [self.relative_x, self.relative_y]
-
         stoplight_present = self.stoplight_present
 
         stop_cmd = AckermannDriveStamped()
-        offset = 0.5
-
-        distances_from_stoplight = []
 
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
@@ -113,12 +114,12 @@ class SafetyControllerStopLight(Node):
             # calculate the euclidean distance between the robot's pose and the coordinates
             # difference = lambda coord, pose: np.linalg.norm(np.array([coord[0] - pose[0], coord[1] - pose[1]]))
             distance = ((coord[0] - pose[0])**2 + (coord[1] - pose[1])**2)**0.5
-            distances_from_stoplight.append(distance)
+            distances.append(distance)
 
         # check if any of the calculated distances are less than a meter
-        for distance in distances_from_stoplight:
-            if distance <= 1 and stoplight_present == True:
-                self.get_logger().info('stopping')
+        for dist in distances:
+            if dist < 1 and stoplight_present == True:
+                # self.get_logger().info('stopping')
                 stop_cmd.drive.speed = 0.0
                 stop_cmd.drive.steering_angle = self.TURNING_ANGLE
                 self.pub_drive.publish(stop_cmd)

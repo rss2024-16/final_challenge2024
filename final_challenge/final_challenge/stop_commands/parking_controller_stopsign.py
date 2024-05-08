@@ -55,8 +55,8 @@ class SafetyControllerStopSign(Node):
         For now, let's just pass them through
         '''
         # self.pub_safety.publish(msg)
-        # self.VELOCITY = msg.drive.speed
-        pass
+        self.VELOCITY = msg.drive.speed
+
 
     def relative_stoplight_callback(self, msg):
         '''
@@ -71,12 +71,13 @@ class SafetyControllerStopSign(Node):
 
         stop_cmd = AckermannDriveStamped()
 
-        offset = 0.5
+        # offset = 0.5
+        offset = 1
 
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
 
-        if  msg.x_pos <=  self.STOP_RANGE:
+        if  msg.x_pos <  self.STOP_RANGE:
             # Example threshold, adjust as needed
             # self.get_logger().info('stopping')
             stop_cmd.drive.speed = 0.0
