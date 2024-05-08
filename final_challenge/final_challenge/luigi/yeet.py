@@ -11,7 +11,7 @@ import tf2_ros
 
 import numpy as np
 
-from .utils import LineTrajectory
+from path_planning.utils import LineTrajectory
 import math
 import time
 
@@ -256,12 +256,13 @@ class PurePursuit(YasminNode):
             # self.get_logger().info("index: " + str(index))
             # self.get_logger().info("distance to goal: " + str(distance_to_goal))
 
-            alpha = np.arctan2(closest_point[1],closest_point[0])
-            curvature = 2*np.sin(alpha)
+            # alpha = np.arctan2(closest_point[1],closest_point[0])
+            # curvature = 2*np.sin(alpha)
 
             drive_cmd = AckermannDriveStamped()
 
             if isinstance(closest_point, bool):
+                # self.get_logger.info(f'closest point is boolean: {closest_point}')
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
             else:

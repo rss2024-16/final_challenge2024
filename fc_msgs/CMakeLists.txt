@@ -31,6 +31,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/StopSign.msg"
   "action/FindPath.action"
   "action/NavigateToPose.action"
+  "srv/LaneProject.srv"
   DEPENDENCIES geometry_msgs std_msgs sensor_msgs 
  )
 

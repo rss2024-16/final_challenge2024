@@ -4,7 +4,7 @@ from rclpy.node import Node
 assert rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, PoseArray, PointStamped
 from nav_msgs.msg import OccupancyGrid
-from .utils import LineTrajectory, Map
+from path_planning.utils import LineTrajectory, Map
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from visualization_msgs.msg import Marker, MarkerArray
 from yasmin_ros.yasmin_node import YasminNode
