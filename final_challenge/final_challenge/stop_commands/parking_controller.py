@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import rclpy
 from rclpy.node import Node
 import numpy as np

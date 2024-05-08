@@ -12,10 +12,10 @@ import math
 
 from tf_transformations import euler_from_quaternion
 
-from skimage.morphology import dilation,erosion
-from skimage.morphology import square,disk
+# from skimage.morphology import dilation,erosion
+# from skimage.morphology import square,disk
 
-import dubins
+# import dubins
 
 import heapq
 from collections import deque
