@@ -7,7 +7,7 @@ from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
 
 from .trajectory_planner import PathPlan
 from fc_msgs.action import NavigateToPose
-from .yeet import PurePursuit
+from .PID import PurePursuit
 import time
 from yasmin_ros.yasmin_node import YasminNode
 from std_msgs.msg import String
