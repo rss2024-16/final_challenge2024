@@ -1,4 +1,0 @@
-<launch>
-    <node pkg="final_challenge" exec="basement_point_publisher" name="basement_point_publisher" output="screen"> </node>
-    <node pkg="final_challenge" exec="lane_projection" name="lane_projection" output="screen"> </node>
-</launch>
