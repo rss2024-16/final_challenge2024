@@ -48,8 +48,8 @@ class PID(Node):
         # self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         # self.drive_topic = self.get_parameter('drive_topic').get_parameter_value().string_value
         self.odom_topic = "/pf/pose/odom"
-        # self.drive_topic = "/vesc/input/navigation"
-        self.drive_topic = '/drive'
+        self.drive_topic = "/vesc/input/navigation"
+        #self.drive_topic = '/drive'
 
         self.driving_to_shell = goal
 
