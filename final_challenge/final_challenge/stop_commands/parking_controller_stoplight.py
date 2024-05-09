@@ -47,8 +47,9 @@ class SafetyControllerStopLight(Node):
 
         self.sub_navigation = self.create_subscription(AckermannDriveStamped, self.NAVIGATION_TOPIC, self.navigation_callback, 10)
         self.stoplight_sub = self.create_subscription(StopLightLocation, "/relative_stoplight", self.relative_stoplight_callback, 1)
-        self.pub_drive = self.create_publisher(AckermannDriveStamped, self.DRIVE_TOPIC, 10)
         self.odom_sub = self.create_subscription(Odometry, "/pf/pose/odom", self.localization_radius_callback, 1)
+
+        self.pub_drive = self.create_publisher(AckermannDriveStamped, self.DRIVE_TOPIC, 10)
 
         # is this the current current speed of the car?
         # self.VELOCITY = 1.6
