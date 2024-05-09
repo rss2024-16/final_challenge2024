@@ -7,8 +7,8 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
 from fc_msgs.msg import StopLightPixel
-
-from std_msgs.msg import Float32
+from ackermann_msgs.msg import AckermannDriveStamped
+from nav_msgs.msg import Odometry
 
 class StopLight(Node):
     """
@@ -22,7 +22,7 @@ class StopLight(Node):
 
         # Subscribe to ZED camera RGB frames
         self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
-        self.pose_sub = self.create_subscription(Odometry, self.odom_topic, self.pose_callback, 1)
+        self.pose_sub = self.create_subscription(Odometry, "/pf/pose/odom", self.pose_callback, 1)
         self.debug_pub = self.create_publisher(Image, "/stoplight_debug_img", 10)
         self.safety_pub = self.create_publisher(AckermannDriveStamped, "/vesc/low_level/input/safety", 10)
         self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
@@ -32,10 +32,21 @@ class StopLight(Node):
                             (-54.410980224609375,22.996463775634766)]
 
         self.ON_DISTANCE = 1.5
-        self.LOWER = 0
-        self.UPPER = 1
+
+        # At 0.75 meters, 127 is lower and 137 is upper exactly
+        self.LOWER = 117
+        self.UPPER = 147
+
+        self.pose = (0.0, 0.0)
 
         self.get_logger().info("Stop Light Detector Initialized")
+
+    def pose_callback(self, odometry_msg):
+        # Unpack the odom message
+        x = odometry_msg.pose.pose.position.x
+        y = odometry_msg.pose.pose.position.y
+
+        self.pose = (x, y)
 
     def image_callback(self, image_msg):
         # From your bounding box, take the center pixel on the bottom
@@ -43,20 +54,20 @@ class StopLight(Node):
         # publish this pixel (u, v) to the /relative_cone_px topic; the homography transformer will
         # convert it to the car frame.
 
-        # Unpack the odom message
-        x = odometry_msg.pose.pose.position.x
-        y = odometry_msg.pose.pose.position.y
-
         # Minimum distance from robot to each stoplight
-        min_dist = min(np.sqrt((x - x_i)**2 + (y - y_i)**2) for x_i, y_i in self.stoplights)
+        min_dist = min(np.sqrt((self.pose[0] - x_i)**2 + (self.pose[1] - y_i)**2) for x_i, y_i in self.stoplights)
 
-        if min_dist <= self.ON_DISTANCE:
+        #if min_dist <= self.ON_DISTANCE:
+        if True:
 
             image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
 
             image_cropped = image[self.LOWER:self.UPPER,:,:]
 
-            detected, y, h = sl_color_segmentation(image_cropped, None)
+            detected, y, h, image_marked = sl_color_segmentation(image_cropped, None)
+
+            debug_msg = self.bridge.cv2_to_imgmsg(image_marked, "bgr8")
+            self.debug_pub.publish(debug_msg)
 
             if detected:
                 self.get_logger().info(f"Y value: {y}, height: {h}")
@@ -77,11 +88,11 @@ def sl_color_segmentation(img, template):
     # Blur
 	#img = cv2.GaussianBlur(img, (5,5), 0)
 	#img = cv2.medianBlur(img, 5)
-	img = cv2.blur(img, (4,4))
-	img = cv2.bilateralFilter(img, 5, 75, 75)
+	img_blur = cv2.blur(img, (4,4))
+	img_blur = cv2.bilateralFilter(img_blur, 5, 75, 75)
 
     # Convert bgr to hsv
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+	hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
 
 	RED_THRESHOLD = [
 		([0, 160, 100], [10, 255, 255]),
@@ -114,14 +125,14 @@ def sl_color_segmentation(img, template):
 		# Add rectangle
 		cv2.rectangle(img, (x,y), (x+w,y+h), (0,0,255), 2)
 
-		return True, y, h
+		return True, y, h, img
 
-	return False, None, None
+	return False, None, None, img
 
 def main(args=None):
     rclpy.init(args=args)
-    cone_detector = StopLightDetector()
-    rclpy.spin(cone_detector)
+    light_detector = StopLight()
+    rclpy.spin(light_detector)
     rclpy.shutdown()
 
 

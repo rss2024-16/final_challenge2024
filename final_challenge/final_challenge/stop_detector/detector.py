@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 
 from PIL import Image, ImageDraw
 
-class StopSignDetector:
-  def __init__(self, threshold=0.1):
+class Detector:
+  def __init__(self, label, threshold=0.0):
+    self.label = label #'stop sign' or 'traffic light'
     # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5n', pretrained=True)
     self.model = torch.hub.load('/root/.yolo', 'custom', source='local', path='/root/.yolo/yolov5n.pt', force_reload=False)
     self.threshold = threshold
@@ -29,7 +30,7 @@ class StopSignDetector:
     results_df = results.pandas().xyxy[0]
     self.results = results_df
 
-    return is_stop_sign(results_df, threshold=self.threshold), get_bounding_box(results_df, threshold=self.threshold)
+    return self.is_stop_sign(results_df), self.get_bounding_box(results_df)
 
   def draw_box(self, img, box=None):
     if box is None: _, box = self.predict(img)
@@ -38,6 +39,18 @@ class StopSignDetector:
 
   def set_threshold(self, new_thresh):
     self.threshold=new_thresh
+
+  def is_stop_sign(self, df):
+    confidences = df[df['confidence'] > self.threshold]
+    return len(confidences[confidences['name'] == self.label]) != 0 # If a stop sign has been detected
+
+  def get_bounding_box(self, df):
+    if not self.is_stop_sign(df): return [0, 0, 0, 0]
+    confidences = df[df['confidence'] > self.threshold]
+    stop_sign = confidences[confidences['name'] == self.label].head(1)
+    coords = stop_sign.xmin, stop_sign.ymin, stop_sign.xmax, stop_sign.ymax
+    return [coord.values[0] for coord in coords]
+
 
 
 # Utilities
@@ -59,21 +72,6 @@ def draw_box(im, box):
     imgd = ImageDraw.Draw(img)
     imgd.rectangle(box, outline='red')
     return img
-
-# Detecting Utils
-
-THRESHOLD = 0.7
-
-def is_stop_sign(df, label='stop sign', threshold=THRESHOLD):
-    confidences = df[df['confidence'] > threshold]
-    return len(confidences[confidences['name'] == label]) != 0 # If a stop sign has been detected
-
-def get_bounding_box(df, label='stop sign', threshold=THRESHOLD):
-    if not is_stop_sign(df, label=label, threshold=threshold): return (0, 0, 0, 0)
-    confidences = df[df['confidence'] > threshold]
-    stop_sign = confidences[confidences['name'] == label].head(1)
-    coords = stop_sign.xmin, stop_sign.ymin, stop_sign.xmax, stop_sign.ymax
-    return [coord.values[0] for coord in coords]
 
 if __name__=="__main__":
     detector = StopSignDetector()
