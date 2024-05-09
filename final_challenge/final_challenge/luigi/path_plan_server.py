@@ -3,11 +3,9 @@ from rclpy.action import ActionServer
 from rclpy.node import Node
 
 from fc_msgs.action import FindPath
-from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
 
 from .trajectory_planner import PathPlan
 from .utils import LineTrajectory
-from yasmin_ros.yasmin_node import YasminNode
 
 class PathPlanActionServer(Node):
 
@@ -60,7 +58,3 @@ def main(args=None):
     path_plan_action_server = PathPlanActionServer()
 
     rclpy.spin(path_plan_action_server)
-
-
-# if __name__ == '__main__':
-#     main()

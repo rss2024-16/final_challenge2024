@@ -1,0 +1,23 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from fc_msgs/action/FindPath.action
+// generated code does not contain a copyright notice
+
+#include "geometry_msgs/msg/PoseArray.idl"
+
+module fc_msgs {
+  module action {
+    struct FindPath_Goal {
+      geometry_msgs::msg::PoseArray s_and_t;
+
+      boolean follow_lane;
+
+      boolean right;
+    };
+    struct FindPath_Result {
+      geometry_msgs::msg::PoseArray trajectory;
+    };
+    struct FindPath_Feedback {
+      string outcome;
+    };
+  };
+};

@@ -1,0 +1,11 @@
+{
+  "package_name": "fc_msgs",
+  "non_idl_tuples": [
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:msg/StopSign.msg",
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:msg/StopLightLocation.msg",
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:msg/StopLightPixel.msg",
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:action/FindPath.action",
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:action/NavigateToPose.action",
+    "/home/racecar/racecar_ws/src/final_challenge2024/fc_msgs:srv/LaneProject.srv"
+  ]
+}
