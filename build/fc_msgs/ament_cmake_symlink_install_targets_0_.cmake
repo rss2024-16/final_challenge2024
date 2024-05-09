@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/racecar/racecar_ws/src/final_challenge2024/build/fc_msgs/libfc_msgs__rosidl_typesupport_fastrtps_c.so" "TARGETS" "fc_msgs__rosidl_typesupport_fastrtps_c" "ARCHIVE_DESTINATION" "lib" "LIBRARY_DESTINATION" "lib" "RUNTIME_DESTINATION" "bin")

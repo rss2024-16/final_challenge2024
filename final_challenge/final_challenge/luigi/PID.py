@@ -51,10 +51,11 @@ class PID(YasminNode):
         # self.drive_topic = "/vesc/input/navigation"
         self.drive_topic = '/drive'
 
-        # self.driving_to_shell = goal
+        self.follow_lane = None
 
         self.points = None
         self.current_pose = None
+        self.car_position = None
         self.intersections = None
         self.turning_markers = []
         self.goal = None
@@ -63,7 +64,7 @@ class PID(YasminNode):
         
         self.MAX_TURN = 0.34
 
-        self.trajectory = LineTrajectory("/followed_trajectory")
+        self.trajectory = LineTrajectory(Node("followed_trajectory"))
 
         self.traj_sub = self.create_subscription(PoseArray,
                                                  "/trajectory/current",
@@ -103,6 +104,8 @@ class PID(YasminNode):
 
         self.last_point = None
 
+        self.last_points = None
+        
         self.traveled_points = set()
 
     @property
@@ -176,6 +179,7 @@ class PID(YasminNode):
         if distance_to_goal < 0.5: 
             # self.get_logger().info("close enough to goal")
             self._succeed = True
+            self.last_points = self.points
             return True, None, None
         elif closest_point is None:
             # self.get_logger().info("no points in front of car")
@@ -200,7 +204,7 @@ class PID(YasminNode):
 
         theta = orientation[2]
         R = self.transform(theta)
-        self.car_pose = odometry_msg.pose.pose
+        self.car_position = odometry_msg.pose.pose
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
         # theta += np.pi
 
@@ -211,13 +215,17 @@ class PID(YasminNode):
             # self.get_logger().info("index: " + str(index))
             # self.get_logger().info("distance to goal: " + str(distance_to_goal))
 
-            distance_to_goal = self.distance(np.array([0,0,0]), self.goal-self.current_pose)
-            if self.driving_to_shell and distance_to_goal < 3.0:
+            distance_to_goal = self.distance(np.array([0,0,0]), np.matmul(self.goal-self.current_pose, R)) 
+            # self.get_logger().info(f'following lane: {self.follow_lane}')
+            # self.get_logger().info(f'distance to goal: {distance_to_goal}')
+            if (self.follow_lane and distance_to_goal < 3.0) or self._succeed:
+                # self.get_logger().info("Within radius...")
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
                 self.drive_pub.publish(drive_cmd)
                 self._succeed = True
-            elif distance_to_goal< 0.5:
+            elif distance_to_goal < 0.5 or self._succeed:
+                self.get_logger().info("Reached goal...")
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
                 self.drive_pub.publish(drive_cmd)
@@ -249,8 +257,8 @@ class PID(YasminNode):
                 # error = (error + np.pi) % (2 * np.pi) - np.pi
 
                 theta_xc = np.arctan2(closest_point[1], speed)
-                self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
-                self.get_logger().info(f'heading: {error} cross track: {theta_xc}')
+                # self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
+                # self.get_logger().info(f'heading: {error} cross track: {theta_xc}')
 
                 error += theta_xc
 
@@ -282,8 +290,8 @@ class PID(YasminNode):
                     D = 0
 
                 control = P + I + D
-                self.get_logger().info(f'{error}')
-                self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
+                # self.get_logger().info(f'{error}')
+                # self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
                 self.previous_errors.append(error)
                 self.all_controls.append((P,I,D))
 
@@ -351,7 +359,7 @@ class PID(YasminNode):
             # self.update
             self.trajectory.updatePoints(self.points)
             self.points = np.array(self.trajectory.points)
-        self.goal = self.points[-1]
+        # self.goal = self.points[-1]
         self.trajectory.publish_viz(duration=0.0)
 
         self.initialized_traj = True

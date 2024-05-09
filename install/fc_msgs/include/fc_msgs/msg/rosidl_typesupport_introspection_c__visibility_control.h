@@ -1,1 +1,0 @@
-/home/racecar/racecar_ws/src/final_challenge2024/build/fc_msgs/rosidl_typesupport_introspection_c/fc_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h
