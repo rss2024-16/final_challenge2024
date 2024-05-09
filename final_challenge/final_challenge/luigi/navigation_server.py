@@ -2,11 +2,12 @@ import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
 
-from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import Pose,PoseArray
 
 from fc_msgs.action import NavigateToPose
 from .PID import PID
 import time
+import numpy as np
 
 class NavigationActionServer(Node):
 
@@ -19,17 +20,22 @@ class NavigationActionServer(Node):
             self.execute_callback)
         
         self.node = PID()
-        self.traj_pub = self.create_publisher(PoseArray,
-                                                "/trajectory/current",
-                                                1)
+        self.traj_pub = self.create_publisher(PoseArray, "/trajectory/current", 1)
         self.get_logger().info('Navigation Action Server Initialized')
             
     def execute_callback(self, goal_handle):
         self.get_logger().info('Server Navigating...')
 
-        trajectory = goal_handle.request.trajectory #PoseArray
+        trajectory : PoseArray = goal_handle.request.trajectory 
         follow_lane = goal_handle.request.follow_lane
-        self.node.driving_to_shell = not follow_lane
+        goal = goal_handle.request.goal
+        self.node.follow_lane = follow_lane
+        self.node.goal = np.array([goal.position.x, goal.position.y, 0])
+
+        self.get_logger().info(f"Follow Lane: {follow_lane}")
+        # self.node.get_logger().info(f"Follow Lane: {follow_lane}")
+        # self.node.get_logger().info(f"Trajectory: {trajectory}")
+        # self.node.get_logger().info(f"Driving to Shell: {self.node.driving_to_shell}")
 
         self.traj_pub.publish(trajectory) #now the pursuit should start running
 
@@ -49,7 +55,7 @@ class NavigationActionServer(Node):
             goal_handle.publish_feedback(feedback_msg)
             goal_handle.succeed()
             result = NavigateToPose.Result()
-            result.car_position = self.node.current_pose
+            result.car_position = self.node.car_position
             return NavigateToPose.Result()
         else:
             self.node.reset_success()

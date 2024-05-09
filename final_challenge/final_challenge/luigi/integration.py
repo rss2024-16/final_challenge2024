@@ -1,32 +1,21 @@
 #!/usr/bin/env python3
 import time
-import threading
-
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Pose, PoseArray, Point, PointStamped, PoseWithCovarianceStamped
-from fc_msgs.action import FindPath, NavigateToPose
-from fc_msgs.srv import LaneProject
-from tf_transformations import euler_from_quaternion, quaternion_from_euler
-from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Pose, PoseArray
 
 from yasmin import CbState
 from yasmin import Blackboard
 from yasmin import StateMachine
 from yasmin import State
 from yasmin_ros.action_state import ActionState
-from yasmin_ros.service_state import ServiceState
 from yasmin_ros.yasmin_node import YasminNode
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
-from nav_msgs.msg import OccupancyGrid
 
-from path_planning.utils import Map
 from .utils import LaneProjection
 from .basement_point_publisher import BasementPointPublisher
-
-HAS_NEXT = "has_next"
-END = "end"
+from fc_msgs.action import FindPath, NavigateToPose
 
 """
 Instructions for launch
@@ -59,10 +48,11 @@ class Nav2State(ActionState):
         goal = NavigateToPose.Goal()
         goal.trajectory = blackboard.trajectory
         goal.follow_lane = self.follow_lane
+        goal.goal = blackboard.goal
         return goal
 
     def handle_result(self, blackboard, result) -> str:
-        if result.car_position is None:
+        if result is None:
             return ABORT  # Handle if the action fails
         blackboard.car_position = result.car_position
         if not self.follow_lane: #at shell location
@@ -81,10 +71,8 @@ class Plan2State(ActionState):
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
-        
-
-        self.count = 0
         self.follow_lane = None
+        self.count = None
 
     def create_goal_handler(self, blackboard: Blackboard) -> FindPath.Goal:
         """
@@ -97,6 +85,7 @@ class Plan2State(ActionState):
         shell_locations: PoseArray = blackboard.shell_locations
         self.follow_lane : bool = blackboard.follow_lane
         car_side = blackboard.car_side
+        self.count = blackboard.count
             
         poses = shell_locations.poses
         poses = [initial_position] + poses
@@ -114,8 +103,8 @@ class Plan2State(ActionState):
         s_and_t.header.frame_id = "map"
         goal.s_and_t = s_and_t
         goal.follow_lane = self.follow_lane
-        goal.side = car_side
-        self.count += 1
+        goal.right = car_side
+        goal.map = blackboard.occ_map
         return goal
 
     def handle_result(self, blackboard, result: PoseArray) -> str:
@@ -123,12 +112,14 @@ class Plan2State(ActionState):
         result should be a pose array
         blackboard.trajectory = result.trajectory
         """
-        if result.trajectory is None:
+        if result is None:
             return ABORT  # Handle if the action fails
         # Handle the result based on your requirements
         # For example, update blackboard or perform further actions
-
+        if not self.follow_lane:
+            blackboard.count = self.count + 1
         blackboard.trajectory = result.trajectory
+        # print('trajectory', blackboard.trajectory)
         return SUCCEED
     
 class Project(State):
@@ -136,13 +127,11 @@ class Project(State):
     Yasmin state node that projects the next goal location to the car's current lane
     '''
     def __init__(self):
-        super().__init__(outcomes=["in_front", "behind", END, CANCEL, ABORT])
+        super().__init__(outcomes=["in_front", "behind", "end", CANCEL, ABORT])
         self.node = YasminNode() #yasmin node has multithreading so that the excute function can be called synchronously with publisher/subscriber
-        
+        self.node = Node("Logger")
         self.count = 0
-
         self.project = LaneProjection()
-        # self.node.get_logger().info("Projection Initialized")
 
     def execute(self, blackboard: Blackboard) -> str:
         """
@@ -156,6 +145,7 @@ class Project(State):
         "behind": next goal is behind the car
         "end": no more goals to project
         """
+        self.node.get_logger().info("Projecting next goal")
         initial_position: Pose = blackboard.init_pose
         shell_locations: PoseArray = blackboard.shell_locations
         car_side: bool = blackboard.car_side #True if car on right side
@@ -167,26 +157,26 @@ class Project(State):
         s = poses[self.count]
         t = poses[(self.count + 1) % len(poses)] 
         projection, projection_index = self.project.project(t, car_side) 
-        _, car_index = self.node.project(s, car_side)
+        _, car_index = self.project.project(s, car_side)
 
         blackboard.projection = projection
         blackboard.goal = t
         blackboard.follow_lane = True
 
         if self.count == 4:
-            return END
-        if projection_index < car_index:
-            return "behind"
+            return "end"
+        # if projection_index < car_index:
+        #     return "behind"
         self.count += 1
         return "in_front"
 
 
-def turn_around():
+def turn_around(blackboard):
     """
     3 point turn
     command to do a 3 point turn to face the opposite direction
     """
-    pass
+    return SUCCEED
 
 # main
 def main():
@@ -244,7 +234,7 @@ def main():
         transitions={
             "in_front": "PLANNING_LANE",
             "behind": "TURN_AROUND",
-            END: SUCCEED,
+            "end": SUCCEED,
             CANCEL: CANCEL,
             ABORT: ABORT
         }
@@ -254,7 +244,7 @@ def main():
     # blackboard.follow_lane = True
     nav_sm.add_state(
         "TURN_AROUND",
-        CbState(['behind'],turn_around),
+        CbState([SUCCEED],turn_around),
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
@@ -294,7 +284,7 @@ def main():
     # blackboard.trajectory: new trajectory to follow to the goal
     nav_sm.add_state(
         "FOLLOWING_PATH",
-        Nav2State(goal=True), #PID
+        Nav2State(), #PID
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,

@@ -44,7 +44,7 @@ class LaneProjection():
         """
         Takes in a point from the map frame and projects it to the desired lane
         Inputs:
-        location - PointStamped: point in the map frame
+        location - Pose: point in the map frame
         right - bool: True if right lane is desired, False if left lane is desired
         Returns: 
         projection - Pose: pose in map frame on lane
@@ -58,7 +58,7 @@ class LaneProjection():
         lane_traj.updatePoints(lane_traj.points[:])
 
         # Find the nearest point on the trajectory to our location
-        loc = (location.point.x, location.point.y)
+        loc = (location.position.x, location.position.y)
         nearest_point, nearest_index = self.find_nearest(loc, lane_traj.points)
 
         # Get the appropriate angle to follow the lane 
