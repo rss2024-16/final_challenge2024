@@ -33,8 +33,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/StopLightPixel.msg"
   "action/FindPath.action"
   "action/NavigateToPose.action"
-  "srv/UvToXy.srv"
-  "srv/XyToUv.srv"
   "srv/LaneProject.srv"
   DEPENDENCIES geometry_msgs std_msgs sensor_msgs 
  )

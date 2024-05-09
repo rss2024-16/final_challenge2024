@@ -2,16 +2,11 @@ import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
 
-from fc_msgs.action import FindPath
-from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
+from geometry_msgs.msg import PoseArray
 
-from .trajectory_planner import PathPlan
 from fc_msgs.action import NavigateToPose
-from .PID import PurePursuit
+from .PID import PID
 import time
-from yasmin_ros.yasmin_node import YasminNode
-from std_msgs.msg import String
-
 
 class NavigationActionServer(Node):
 
@@ -23,7 +18,7 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PurePursuit()
+        self.node = PID()
         self.traj_pub = self.create_publisher(PoseArray,
                                                 "/trajectory/current",
                                                 1)
@@ -33,6 +28,8 @@ class NavigationActionServer(Node):
         self.get_logger().info('Server Navigating...')
 
         trajectory = goal_handle.request.trajectory #PoseArray
+        follow_lane = goal_handle.request.follow_lane
+        self.node.driving_to_shell = not follow_lane
 
         self.traj_pub.publish(trajectory) #now the pursuit should start running
 
@@ -50,8 +47,9 @@ class NavigationActionServer(Node):
             feedback_msg.outcome = "success"
             self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
             goal_handle.publish_feedback(feedback_msg)
-            # time.sleep(7) #pick up shell
             goal_handle.succeed()
+            result = NavigateToPose.Result()
+            result.car_position = self.node.current_pose
             return NavigateToPose.Result()
         else:
             self.node.reset_success()

@@ -52,18 +52,25 @@ class Nav2State(ActionState):
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
+        self.follow_lane = None
 
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        self.follow_lane = blackboard.follow_lane
         goal = NavigateToPose.Goal()
-        trajectory = blackboard.trajectory
-        goal.trajectory = trajectory
+        goal.trajectory = blackboard.trajectory
+        goal.follow_lane = self.follow_lane
         return goal
 
     def handle_result(self, blackboard, result) -> str:
+        if result.car_position is None:
+            return ABORT  # Handle if the action fails
         blackboard.car_position = result.car_position
-        time.sleep(7) #pick up shell
-        return SUCCEED
-
+        if not self.follow_lane: #at shell location
+            time.sleep(7) #pick up shell
+            return SUCCEED
+        else: #within radius
+            blackboard.follow_lane = False
+            return SUCCEED
 
 class Plan2State(ActionState):
     def __init__(self) -> None:
@@ -71,9 +78,10 @@ class Plan2State(ActionState):
             FindPath,  # action type
             "plan_path",  # action name
             self.create_goal_handler,  # cb to create the goal
-            [END, HAS_NEXT],  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
+            None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
+        
 
         self.count = 0
         self.follow_lane = None
@@ -92,9 +100,6 @@ class Plan2State(ActionState):
             
         poses = shell_locations.poses
         poses = [initial_position] + poses
-        
-        s = poses[self.count]
-        t = poses[(self.count + 1) % len(poses)]
 
         if self.follow_lane:
             s = poses[self.count]
@@ -118,35 +123,33 @@ class Plan2State(ActionState):
         result should be a pose array
         blackboard.trajectory = result.trajectory
         """
-        if result is None:
+        if result.trajectory is None:
             return ABORT  # Handle if the action fails
         # Handle the result based on your requirements
         # For example, update blackboard or perform further actions
 
         blackboard.trajectory = result.trajectory
-        
-        if self.follow_lane:
-            return "FOLLOWING_LANE"
-        else:
-            return "FOLLOWING_PATH"
+        return SUCCEED
     
 class Project(State):
     '''
     Yasmin state node that projects the next goal location to the car's current lane
     '''
     def __init__(self):
-        super().__init__(outcomes=[SUCCEED])
-        self.node = LaneProjection() #yasmin node has multithreading so that the excute function can be called synchronously with publisher/subscriber
+        super().__init__(outcomes=["in_front", "behind", END, CANCEL, ABORT])
+        self.node = YasminNode() #yasmin node has multithreading so that the excute function can be called synchronously with publisher/subscriber
         
         self.count = 0
 
-        self.node.get_logger().info("Projection Initialized")
+        self.project = LaneProjection()
+        # self.node.get_logger().info("Projection Initialized")
 
     def execute(self, blackboard: Blackboard) -> str:
         """
         output:
         blackboard.projection = projection of next location
         blackboard.goal = actual goal (shell or start)
+        blackboard.follow_lane = True
         
         outcomes:
         "in_front": next goal is in front of the car
@@ -163,7 +166,7 @@ class Project(State):
         
         s = poses[self.count]
         t = poses[(self.count + 1) % len(poses)] 
-        projection, projection_index = self.node.project(t, car_side) 
+        projection, projection_index = self.project.project(t, car_side) 
         _, car_index = self.node.project(s, car_side)
 
         blackboard.projection = projection
@@ -177,15 +180,6 @@ class Project(State):
         self.count += 1
         return "in_front"
 
-def is_behind_us(blackboard: Blackboard) -> bool:
-    """
-    Check if the car is behind us
-    """
-    projection = blackboard.projection
-    init_pose = blackboard.init_pose
-    if projection.position.x < init_pose.position.x:
-        return True
-    return False
 
 def turn_around():
     """
@@ -255,10 +249,12 @@ def main():
             ABORT: ABORT
         }
     )
-    #blackboard.projection: projection of next goal onto the car's lane
+    # blackboard.projection: projection of next goal onto the car's lane
+    # blackboard.goal = t
+    # blackboard.follow_lane = True
     nav_sm.add_state(
         "TURN_AROUND",
-        CbState(turn_around),
+        CbState(['behind'],turn_around),
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
@@ -280,11 +276,12 @@ def main():
         "FOLLOWING_LANE",
         Nav2State(), #PID
         transitions={
-            "within_radius": "PLANNING_PATH",
+            SUCCEED: "PLANNING_PATH",
             CANCEL: CANCEL,
             ABORT: ABORT
         }
     )
+    #blackboard.follow_lane = False
     nav_sm.add_state(
         "PLANNING_PATH",
         Plan2State(), #BFS
@@ -297,7 +294,7 @@ def main():
     # blackboard.trajectory: new trajectory to follow to the goal
     nav_sm.add_state(
         "FOLLOWING_PATH",
-        Nav2State(), #PID
+        Nav2State(goal=True), #PID
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,
@@ -326,10 +323,6 @@ def main():
 
     # shutdown ROS 2
     rclpy.shutdown()
-
-
-# if __name__ == "__main__":
-#     main()
 
 
 
