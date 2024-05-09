@@ -10,8 +10,8 @@ from geometry_msgs.msg import Pose
 
 class LaneProjection():
     def __init__(self):
-        self.left_lane_traj = LineTrajectory(Node(), "/loaded_trajectory")
-        self.right_lane_traj = LineTrajectory(Node(), "/loaded_trajectory")
+        self.left_lane_traj = LineTrajectory(Node('lane_proj1'), "/loaded_trajectory")
+        self.right_lane_traj = LineTrajectory(Node('lane_proj2'), "/loaded_trajectory")
         
         self.right_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
         self.left_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")

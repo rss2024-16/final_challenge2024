@@ -35,12 +35,12 @@ speed
 ros2 launch path_planning sim_yeet.launch.xml
 """
 
-class PurePursuit(Node):
+class PID(Node):
     """ 
     Implements Pure Pursuit trajectory tracking with a fixed lookahead and speed.
     """
 
-    def __init__(self):
+    def __init__(self, goal=True):
         super().__init__('pid_controller')
         self.declare_parameter('odom_topic', "default")
         self.declare_parameter('drive_topic', "default")
@@ -50,6 +50,8 @@ class PurePursuit(Node):
         self.odom_topic = "/pf/pose/odom"
         # self.drive_topic = "/vesc/input/navigation"
         self.drive_topic = '/drive'
+
+        self.driving_to_shell = goal
 
         self.points = None
         self.current_pose = None
@@ -209,9 +211,16 @@ class PurePursuit(Node):
             # self.get_logger().info("distance to goal: " + str(distance_to_goal))
 
             distance_to_goal = self.distance(np.array([0,0,0]), self.goal-self.current_pose)
-            if distance_to_goal< 0.5:
+            if self.driving_to_shell and distance_to_goal < 3.0:
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
+                self.drive_pub.publish(drive_cmd)
+                self._succeed = True
+            elif distance_to_goal< 0.5:
+                drive_cmd.drive.speed = 0.0
+                drive_cmd.drive.steering_angle = 0.0
+                self.drive_pub.publish(drive_cmd)
+                self._succeed = True
             else:
                 # if self.last_point is None:
                 #     self.last_point = self.points[0]
@@ -373,7 +382,7 @@ class PurePursuit(Node):
     
 def main(args=None):
     rclpy.init(args=args)
-    follower = PurePursuit()
+    follower = PID()
     try:
         rclpy.spin(follower)
     except KeyboardInterrupt:

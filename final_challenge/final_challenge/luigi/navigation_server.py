@@ -7,7 +7,7 @@ from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
 
 from .trajectory_planner import PathPlan
 from fc_msgs.action import NavigateToPose
-from .PID import PurePursuit
+from .PID import PID
 import time
 from yasmin_ros.yasmin_node import YasminNode
 from std_msgs.msg import String
@@ -23,7 +23,7 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PurePursuit()
+        self.node = PID()
         self.traj_pub = self.create_publisher(PoseArray,
                                                 "/trajectory/current",
                                                 1)

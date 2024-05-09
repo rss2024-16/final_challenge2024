@@ -57,6 +57,7 @@ class Nav2State(ActionState):
         goal = NavigateToPose.Goal()
         trajectory = blackboard.trajectory
         goal.trajectory = trajectory
+        goal.is_shell 
         return goal
 
     def handle_result(self, blackboard, result) -> str:
@@ -74,6 +75,7 @@ class Plan2State(ActionState):
             [END, HAS_NEXT],  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
+        
 
         self.count = 0
         self.follow_lane = None
@@ -140,7 +142,7 @@ class Project(State):
         
         self.count = 0
 
-        self.node.get_logger().info("Projection Initialized")
+        # self.node.get_logger().info("Projection Initialized")
 
     def execute(self, blackboard: Blackboard) -> str:
         """
@@ -258,7 +260,7 @@ def main():
     #blackboard.projection: projection of next goal onto the car's lane
     nav_sm.add_state(
         "TURN_AROUND",
-        CbState(turn_around),
+        CbState(['behind'],turn_around),
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
@@ -297,7 +299,7 @@ def main():
     # blackboard.trajectory: new trajectory to follow to the goal
     nav_sm.add_state(
         "FOLLOWING_PATH",
-        Nav2State(), #PID
+        Nav2State(goal=True), #PID
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,
