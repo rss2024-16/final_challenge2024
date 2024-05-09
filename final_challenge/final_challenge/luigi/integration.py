@@ -165,8 +165,8 @@ class Project(State):
 
         if self.count == 4:
             return "end"
-        if projection_index < car_index:
-            return "behind"
+        # if projection_index < car_index:
+        #     return "behind"
         self.count += 1
         return "in_front"
 

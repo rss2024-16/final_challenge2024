@@ -105,6 +105,8 @@ class PID(YasminNode):
         self.last_point = None
 
         self.last_points = None
+
+        self.index = 0
         
         self.traveled_points = set()
 
@@ -116,78 +118,6 @@ class PID(YasminNode):
     def distance(self, p1, p2):
         return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
-    def find_minimum_distance(self, v, w, p):
-        """
-        returns the minimum distance between point p and the line segment vw
-        """
-        distance_squared = (v[0] - w[0])**2 + (v[1] - w[1])**2
-        if distance_squared == 0.0:
-            return self.distance(p, v)
-        # self.get_logger().info(f"distance squared: {distance_squared}")
-        t = max(0, min(1, np.dot(p - v, w - v) / distance_squared))
-        projection = v + t * (w - v)
-        return self.distance(p, projection)
-    
-    def find_closest_point(self,R):
-        differences = self.points - self.current_pose
-        relative_points = np.array([np.matmul(i,R) for i in differences])
-        distances = ( (relative_points[:,0])**2 + relative_points[:,1]**2 ) ** (1/2)
-        closest = np.argmin(distances)
-        
-        return relative_points[closest], distances[closest], closest
-
-    def find_closest_point_on_trajectory(self, relative_points, reverse=False):
-        """
-        Find the point on the trajectory nearest to the car's position.
-        relative points: the points on trajectory, converted into the car's frame of reference
-        """
-        closest_point , index, closest_segment = None, 0, None
-        min_distance = float('inf')
-        
-        xdot = np.dot(relative_points[:,0], 1) #dot will return 0 if difference is negative (pt is behind)
-
-        #TODO optimize using argmin??
-        for i in range(len(relative_points) - 1):
-            segment_start = relative_points[i]
-            segment_end = relative_points[i + 1]
-            
-            if tuple(self.points[i]) not in self.traveled_points: #in front of car
-                distance = self.find_minimum_distance(segment_start, segment_end, np.array([0,0,0]))
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_point = segment_start
-                    closest_segment = (segment_start, segment_end)
-                    index = i
-
-        # distances = self.find_minimum_distance_array(self.segments, np.array([0,0,0]))
-        # self.get_logger().info(f"array: {distances}")
-        # self.get_logger().info(f"min distance: {min_distance}")
-        
-        distance_to_goal = self.distance(np.array([0,0,0]), relative_points[-1]) #distance to goal pose
-
-        # closest_intersect = self.closest_intersect()
-        # if closest_intersect is not None:
-        #     closest_point_intersect = closest_intersect[0]
-        #     closest_global = np.matmul(closest_point_intersect, np.linalg.inv(R)) + self.current_pose
-        #     self.closest.publish(self.to_marker(closest_global, 0, [0.0, 0.0, 1.0], 0.5))
-        
-        # if closest_intersect is not None:
-        #     closest_intersect_distance = closest_intersect[1]
-        # else:
-        #     closest_intersect_distance = None
-
-        if distance_to_goal < 0.5: 
-            # self.get_logger().info("close enough to goal")
-            self._succeed = True
-            self.last_points = self.points
-            return True, None, None
-        elif closest_point is None:
-            # self.get_logger().info("no points in front of car")
-            self._succeed = False
-            return False, None, None
-        
-        # self.publish_marker_array(self.relative_point_pub, np.array([closest_point]), R, self.current_pose, rgb=[1.0, 0.0, 0.0])
-        return closest_point, index, distance_to_goal
         
     def pose_callback(self, odometry_msg):
         """
@@ -206,61 +136,51 @@ class PID(YasminNode):
         R = self.transform(theta)
         self.car_position = odometry_msg.pose.pose
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
-        # theta += np.pi
+
 
         drive_cmd = AckermannDriveStamped()
         if self.points is not None:
-            closest_point, dist, idx = self.find_closest_point(R)
-            
-            # self.get_logger().info("index: " + str(index))
-            # self.get_logger().info("distance to goal: " + str(distance_to_goal))
-
+            pt = self.points[self.index]
+            closest_point = np.matmul(pt-self.current_pose,R)
+            dist = self.distance(np.array([0,0,0]),closest_point)
             distance_to_goal = self.distance(np.array([0,0,0]), np.matmul(self.goal-self.current_pose, R)) 
-            # self.get_logger().info(f'following lane: {self.follow_lane}')
-            # self.get_logger().info(f'distance to goal: {distance_to_goal}')
+
             if (self.follow_lane and distance_to_goal < 3.0) or self._succeed:
                 # self.get_logger().info("Within radius...")
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
                 self.drive_pub.publish(drive_cmd)
                 self._succeed = True
+                self.last_point = None
             elif distance_to_goal < 0.5 or self._succeed:
                 self.get_logger().info("Reached goal...")
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
                 self.drive_pub.publish(drive_cmd)
+                self.last_point = None
                 self._succeed = True
             else:
-                # if self.last_point is None:
-                #     self.last_point = self.points[0]
-                #     self.traveled_points.add(tuple(self.points[0]))
-                if dist < 0.5: #probs different irl
-                    # self.traveled_points.add(tuple(closest_point))
-                    self.points = np.delete(self.points,idx,axis=0)
-                # self.get_logger().info(f'{self.traveled_points}')
+                if self.last_point is None:
+                    self.last_point = closest_point
+                    
+                if dist < 0.2 or closest_point[0]*self.last_point[0] < 0: #probs different irl
+                    if self.index != len(self.points)-1:
+                        self.index+=1
+                        new_pt = self.points[self.index]
+                        self.last_point = np.matmul(new_pt-self.current_pose,R)
+
                 global_intersect = np.matmul(closest_point, np.linalg.inv(R)) + self.current_pose
                 self.intersection.publish(self.to_marker(global_intersect, 0, [0.0, 1.0, 0.0], 0.5))
-                # pt = self.points[index]
-                # norm_track_theta = (pt[2] + np.pi) % (2 * np.pi) - np.pi
-                # norm_theta = (theta + np.pi) % (2 * np.pi) - np.pi
-                # error_from_trajectory = closest_point[1]
-                # slope = closest_point[1]/closest_point[0] #y /x 
+
                 speed = 2.0
-                # error = (norm_track_theta - norm_theta)
-                # if error > np.pi:
-                #     error -= np.pi
-                # elif error < -np.pi:
-                #     error += np.pi
-                error = 0
-                # error = np.arctan2( np.sin(closest_point[2]-theta), np.cos(closest_point[2]-theta) )
-                # error = error - 2*np.pi if error > np.pi else error + np.pi
-                # error = (error + np.pi) % (2 * np.pi) - np.pi
+
+                orientation_error = np.arctan2( np.sin(closest_point[2]-theta), np.cos(closest_point[2]-theta) )
 
                 theta_xc = np.arctan2(closest_point[1], speed)
                 # self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
                 # self.get_logger().info(f'heading: {error} cross track: {theta_xc}')
 
-                error += theta_xc
+                error = 0.3*orientation_error + 0.7*theta_xc
 
                 drive_cmd = AckermannDriveStamped()
 
@@ -307,7 +227,7 @@ class PID(YasminNode):
 
                 if closest_point[0] < 0:
                     speed = -1.6
-                    turning_angle = -turning_angle
+                    turning_angle = turning_angle
 
                 drive_cmd.drive.speed = speed
                 drive_cmd.drive.steering_angle = turning_angle
@@ -322,20 +242,6 @@ class PID(YasminNode):
 
 
             self.drive_pub.publish(drive_cmd)
-
-    def reset_distances(self):
-        distances = []
-        num_points = len(self.points)
-
-        for i in range(num_points):
-            if i == 0:
-                distances.append(0)
-            else:
-                p0 = self.points[i - 1]
-                p1 = self.points[i]
-                delta = np.array([p0[0] - p1[0], p0[1] - p1[1]])
-                distances.append(distances[i - 1] + np.linalg.norm(delta))
-        return distances
         
     def trajectory_callback(self, msg):
         """
@@ -359,7 +265,7 @@ class PID(YasminNode):
             # self.update
             self.trajectory.updatePoints(self.points)
             self.points = np.array(self.trajectory.points)
-        # self.goal = self.points[-1]
+        self.goal = self.points[-1]
         self.trajectory.publish_viz(duration=0.0)
 
         self.initialized_traj = True
