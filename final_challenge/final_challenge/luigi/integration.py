@@ -81,6 +81,7 @@ class Plan2State(ActionState):
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
+        
 
         self.count = 0
         self.follow_lane = None
@@ -253,7 +254,7 @@ def main():
     # blackboard.follow_lane = True
     nav_sm.add_state(
         "TURN_AROUND",
-        CbState(turn_around),
+        CbState(['behind'],turn_around),
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
@@ -293,7 +294,7 @@ def main():
     # blackboard.trajectory: new trajectory to follow to the goal
     nav_sm.add_state(
         "FOLLOWING_PATH",
-        Nav2State(), #PID
+        Nav2State(goal=True), #PID
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,

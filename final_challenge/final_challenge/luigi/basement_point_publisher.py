@@ -20,7 +20,7 @@ from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 from nav_msgs.msg import OccupancyGrid
 
-from .utils import Map, LineTrajectory
+from path_planning.utils import Map, LineTrajectory
 
 class BasementPointPublisher(State):
     '''

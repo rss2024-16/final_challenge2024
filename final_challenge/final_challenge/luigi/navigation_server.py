@@ -5,7 +5,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseArray
 
 from fc_msgs.action import NavigateToPose
-from .PID import PurePursuit
+from .PID import PID
 import time
 
 class NavigationActionServer(Node):
@@ -18,7 +18,7 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PurePursuit()
+        self.node = PID()
         self.traj_pub = self.create_publisher(PoseArray,
                                                 "/trajectory/current",
                                                 1)
