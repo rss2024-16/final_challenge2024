@@ -1,5 +1,5 @@
 geometry_msgs/PoseArray trajectory
 ---
-geometry_msgs/PoseArray yeet
+geometry_msgs/Pose car_position
 ---
 string outcome

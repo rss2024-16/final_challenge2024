@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -14,7 +12,7 @@ from std_msgs.msg import Float32
 
 
 # import your color segmentation algorithm; call this function in ros_image_callback!
-from stop_light_segmentation import sl_color_segmentation
+# from final_challenge.stop_detector.stop_light_segmentation import sl_color_segmentation
 
 class StopLightDetector(Node):
    """
@@ -23,13 +21,16 @@ class StopLightDetector(Node):
    Publishes to: /relative_cone_px (StopLightPixel) : the coordinates of the cone in the image frame (units are pixels).
    """
    def __init__(self):
-      super().__init__("stoplight_detector")
-      # Subscribe to ZED camera RGB frames
-      self.stoplight_pub = self.create_publisher(StopLightPixel, "/relative_stoplight_px", 10)
-      self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
-      self.debug_pub = self.create_publisher(Image, "/stoplight_debug_img", 10)
-      self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
-      self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
+       super().__init__("stoplight_detector")
+       # toggle line follower vs cone parker
+       self.LineFollower = False
+
+       # Subscribe to ZED camera RGB frames
+       self.stoplight_pub = self.create_publisher(StopLightPixel, "/relative_stoplight_px", 10)
+       self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
+       self.debug_pub = self.create_publisher(Image, "/stoplight_debug_img", 10)
+       self.dist_pub = self.create_publisher(Float32,'/look_ahead',10)
+       self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
 
       self.get_logger().info("Stop Light Detector Initialized")
 
@@ -44,12 +45,12 @@ class StopLightDetector(Node):
       #344,178.5
       height = image.shape[1]
 
-      look_ahead = 2.5
-      self.dist_pub.publish(float(look_ahead))
-      v = self.get_parameter('look_ahead_v').value
+       look_ahead = 2.5
+       self.dist_pub.publish(float(look_ahead))
+       v = self.get_parameter('look_ahead_v').value
 
-      if v == 0:
-         v = 168.7
+       if v == 0:
+           v = 168.7
 
       # lower = int(.9*v)
       upper = int(1.1*v)
@@ -72,16 +73,16 @@ class StopLightDetector(Node):
 
          self.stoplight_pub.publish(center_pixel)
 
-         debug_msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
-         self.debug_pub.publish(debug_msg)
+           debug_msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
+           self.debug_pub.publish(debug_msg)
 
 
 def main(args=None):
-   rclpy.init(args=args)
-   cone_detector = StopLightDetector()
-   rclpy.spin(cone_detector)
-   rclpy.shutdown()
+    rclpy.init(args=args)
+    cone_detector = StopLightDetector()
+    rclpy.spin(cone_detector)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
-   main()
+    main()

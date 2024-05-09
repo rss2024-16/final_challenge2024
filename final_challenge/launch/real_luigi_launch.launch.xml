@@ -15,7 +15,7 @@
 
   <node pkg="final_challenge" name="parking_controller_stopsign" exec="parking_controller_stopsign" output="screen">
   	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
-  </node>
+  </node> -->
 
   <node pkg="final_challenge" name="stop_light_detector" exec="stop_light_detector" output="screen">
   </node>
