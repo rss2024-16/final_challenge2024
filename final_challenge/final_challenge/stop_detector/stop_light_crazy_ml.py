@@ -11,6 +11,11 @@ import time
 from nav_msgs.msg import Odometry
 from ackermann_msgs.msg import AckermannDriveStamped
 
+from enum import Enum
+
+class State(Enum):
+    DETECT = 1
+    WAIT = 2
 
 class LightDetector(Node):
     def __init__(self):
@@ -19,6 +24,8 @@ class LightDetector(Node):
 
         self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
         self.pose_sub = self.create_subscription(Odometry, "/pf/pose/odom", self.pose_callback, 1)
+        self.sub_navigation = self.create_subscription(AckermannDriveStamped, "/vesc/input/navigation", self.navigation_callback, 10)
+
         self.box_publisher = self.create_publisher(Image,"/stoplight_debug_img",10)
         self.traffic_light_publisher = self.create_publisher(Image,"/stoplight_debug_img_2",10)
         self.safety_pub = self.create_publisher(AckermannDriveStamped, "/vesc/low_level/input/safety", 10)
@@ -33,7 +40,19 @@ class LightDetector(Node):
         self.pose = (0.0, 0.0)
         self.time_elapsed = 0.0
 
+        self.curr_speed = 0
+        self.curr_steer_angle = 0
+
+        self.start_time = 0
+        self.end_time = 0
+        self.buffer = 2 #seconds
+        self.state = State.DETECT
+
         self.get_logger().info("Stop Light Detector Initialized")
+
+    def navigation_callback(self, msg):
+        self.curr_speed = msg.drive.speed
+        self.curr_steer_angle = msg.drive.steering_angle
 
     def pose_callback(self, odometry_msg):
         # Unpack the odom message
@@ -46,8 +65,24 @@ class LightDetector(Node):
         # Minimum distance from robot to each stoplight
         min_dist = min(np.sqrt((self.pose[0] - x_i)**2 + (self.pose[1] - y_i)**2) for x_i, y_i in self.stoplights)
         
-        #if min_dist <= self.ON_DISTANCE:
-        if True:
+        if min_dist <= self.ON_DISTANCE:
+        # if True:
+
+            # Slow down
+            if self.state == State.DETECT:
+                slow_cmd = AckermannDriveStamped()
+                slow_cmd.drive.speed = min(self.curr_speed / 2, 1.6)
+                slow_cmd.drive.steering_angle = self.curr_steer_angle
+                self.safety_pub.publish(slow_cmd)
+
+            if self.state == State.WAIT:
+                if time.time() < self.end_time:
+                    stop_cmd = AckermannDriveStamped()
+                    stop_cmd.drive.speed = 0.0
+                    # stop_cmd.drive.steering_angle = 0.0
+                    self.safety_pub.publish(stop_cmd)
+                else:
+                    self.state = State.DETECT
 
             # Process image with CV Bridge
             image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
@@ -66,10 +101,10 @@ class LightDetector(Node):
                 self.traffic_light_publisher.publish(debug_msg_2)
 
                 if detected:
-                    stop_cmd = AckermannDriveStamped()
-                    stop_cmd.drive.speed = 0.0
-                    stop_cmd.drive.steering_angle = 0.0
-                    self.safety_pub.publish(stop_cmd)
+                    self.state = State.WAIT
+                    self.start_time = time.time()
+                    self.end_time = self.start_time + self.buffer
+
 
                 debug_img = cv2.rectangle(image, (location[0], location[1]), (location[2], location[3]), (0,0,255), 10)
                 debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
@@ -84,6 +119,17 @@ def main(args=None):
 
 if __name__=="__main__":
     main()
+
+
+def timer(seconds):
+    start_time = time.time()  # Get the current time
+    end_time = start_time + seconds  # Calculate the end time
+    
+    # Loop until the current time exceeds the end time
+    while time.time() < end_time:
+        time.sleep(1)  # Wait for 1 second
+
+
 
 def sl_color_segmentation(img, template):
 	"""
