@@ -15,7 +15,7 @@ from path_planning.utils import LineTrajectory
 import math
 import time
 
-# from yasmin_ros.yasmin_node import YasminNode
+from yasmin_ros.yasmin_node import YasminNode
 
 """
 TODO:
@@ -35,13 +35,13 @@ speed
 ros2 launch path_planning sim_yeet.launch.xml
 """
 
-class PID(Node):
+class PID(YasminNode):
     """ 
     Implements Pure Pursuit trajectory tracking with a fixed lookahead and speed.
     """
 
-    def __init__(self, goal=True):
-        super().__init__('pid_controller')
+    def __init__(self):
+        super().__init__()
         self.declare_parameter('odom_topic', "default")
         self.declare_parameter('drive_topic', "default")
 
@@ -51,7 +51,7 @@ class PID(Node):
         # self.drive_topic = "/vesc/input/navigation"
         self.drive_topic = '/drive'
 
-        self.driving_to_shell = goal
+        # self.driving_to_shell = goal
 
         self.points = None
         self.current_pose = None
@@ -200,6 +200,7 @@ class PID(Node):
 
         theta = orientation[2]
         R = self.transform(theta)
+        self.car_pose = odometry_msg.pose.pose
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
         # theta += np.pi
 

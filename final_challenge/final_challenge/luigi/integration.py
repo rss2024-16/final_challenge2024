@@ -114,7 +114,7 @@ class Plan2State(ActionState):
         s_and_t.header.frame_id = "map"
         goal.s_and_t = s_and_t
         goal.follow_lane = self.follow_lane
-        goal.side = car_side
+        goal.right = car_side
         self.count += 1
         return goal
 
@@ -123,11 +123,10 @@ class Plan2State(ActionState):
         result should be a pose array
         blackboard.trajectory = result.trajectory
         """
-        if result.trajectory is None:
+        if result is None:
             return ABORT  # Handle if the action fails
         # Handle the result based on your requirements
         # For example, update blackboard or perform further actions
-
         blackboard.trajectory = result.trajectory
         return SUCCEED
     
@@ -167,7 +166,7 @@ class Project(State):
         s = poses[self.count]
         t = poses[(self.count + 1) % len(poses)] 
         projection, projection_index = self.project.project(t, car_side) 
-        _, car_index = self.node.project(s, car_side)
+        _, car_index = self.project.project(s, car_side)
 
         blackboard.projection = projection
         blackboard.goal = t
@@ -175,18 +174,18 @@ class Project(State):
 
         if self.count == 4:
             return END
-        if projection_index < car_index:
-            return "behind"
+        # if projection_index > car_index:
+        #     return "behind"
         self.count += 1
         return "in_front"
 
 
-def turn_around():
+def turn_around(state):
     """
     3 point turn
     command to do a 3 point turn to face the opposite direction
     """
-    pass
+    return SUCCEED
 
 # main
 def main():
@@ -199,6 +198,9 @@ def main():
     # create state machines
     sm = StateMachine(outcomes=[SUCCEED, ABORT, CANCEL])
     nav_sm = StateMachine(outcomes=[SUCCEED, ABORT, CANCEL])
+
+    plan = Plan2State()
+    nav = Nav2State()
 
     # add states
 
@@ -254,7 +256,7 @@ def main():
     # blackboard.follow_lane = True
     nav_sm.add_state(
         "TURN_AROUND",
-        CbState(['behind'],turn_around),
+        CbState([SUCCEED],turn_around),
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
@@ -264,7 +266,7 @@ def main():
     #blackboard.car_side switch
     nav_sm.add_state(
         "PLANNING_LANE",
-        Plan2State(),
+        Plan2State,
         transitions={
             SUCCEED: "FOLLOWING_LANE",
             CANCEL: CANCEL,
@@ -274,7 +276,7 @@ def main():
     #blackboard.trajectory: new trajectory depending on car lane
     nav_sm.add_state(
         "FOLLOWING_LANE",
-        Nav2State(), #PID
+        Nav2State, #PID
         transitions={
             SUCCEED: "PLANNING_PATH",
             CANCEL: CANCEL,
@@ -284,7 +286,7 @@ def main():
     #blackboard.follow_lane = False
     nav_sm.add_state(
         "PLANNING_PATH",
-        Plan2State(), #BFS
+        Plan2State, #BFS
         transitions={
             SUCCEED: "FOLLOWING_PATH",
             CANCEL: CANCEL,
@@ -294,7 +296,7 @@ def main():
     # blackboard.trajectory: new trajectory to follow to the goal
     nav_sm.add_state(
         "FOLLOWING_PATH",
-        Nav2State(goal=True), #PID
+        Nav2State, #PID
         transitions={
             SUCCEED: "PROJECTING_NEXT_GOAL", 
             CANCEL: CANCEL,

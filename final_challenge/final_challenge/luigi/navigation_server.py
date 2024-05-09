@@ -2,7 +2,7 @@ import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
 
-from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import Pose,PoseArray
 
 from fc_msgs.action import NavigateToPose
 from .PID import PID
@@ -49,7 +49,7 @@ class NavigationActionServer(Node):
             goal_handle.publish_feedback(feedback_msg)
             goal_handle.succeed()
             result = NavigateToPose.Result()
-            result.car_position = self.node.current_pose
+            result.car_position = self.node.car_pose
             return NavigateToPose.Result()
         else:
             self.node.reset_success()
