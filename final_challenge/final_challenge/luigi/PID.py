@@ -48,7 +48,8 @@ class PurePursuit(Node):
         # self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         # self.drive_topic = self.get_parameter('drive_topic').get_parameter_value().string_value
         self.odom_topic = "/pf/pose/odom"
-        self.drive_topic = "/vesc/input/navigation"
+        # self.drive_topic = "/vesc/input/navigation"
+        self.drive_topic = '/drive'
 
         self.points = None
         self.current_pose = None
@@ -77,9 +78,11 @@ class PurePursuit(Node):
                                              [0, 0, 1]
                                             ])
         
+        self.get_logger().info('initialized')
+        
         # self.relative_point_pub = self.create_publisher(MarkerArray,'/relative',1)
         # self.circle = self.create_publisher(MarkerArray, '/circle_marker', 1)
-        # self.intersection = self.create_publisher(Marker,'/intersection',1)
+        self.intersection = self.create_publisher(Marker,'/intersection',1)
         # self.closest = self.create_publisher(Marker,'/closest',1)
         # self.segments = self.create_publisher(MarkerArray, '/segments', 1)
         # self.turning_points = self.create_publisher(MarkerArray, '/turning_points', 1)
@@ -95,6 +98,10 @@ class PurePursuit(Node):
         self.last_error = None
         self.last_integral = None
         self.integral_count = 0
+
+        self.last_point = None
+
+        self.traveled_points = set()
 
     @property
     def success(self): return self._succeed
@@ -115,14 +122,23 @@ class PurePursuit(Node):
         t = max(0, min(1, np.dot(p - v, w - v) / distance_squared))
         projection = v + t * (w - v)
         return self.distance(p, projection)
+    
+    def find_closest_point(self,R):
+        differences = self.points - self.current_pose
+        relative_points = np.array([np.matmul(i,R) for i in differences])
+        distances = ( (relative_points[:,0])**2 + relative_points[:,1]**2 ) ** (1/2)
+        closest = np.argmin(distances)
+        
+        return relative_points[closest], distances[closest], closest
 
-    def find_closest_point_on_trajectory(self, relative_points, R):
+    def find_closest_point_on_trajectory(self, relative_points, reverse=False):
         """
         Find the point on the trajectory nearest to the car's position.
         relative points: the points on trajectory, converted into the car's frame of reference
         """
         closest_point , index, closest_segment = None, 0, None
         min_distance = float('inf')
+        
         xdot = np.dot(relative_points[:,0], 1) #dot will return 0 if difference is negative (pt is behind)
 
         #TODO optimize using argmin??
@@ -130,7 +146,7 @@ class PurePursuit(Node):
             segment_start = relative_points[i]
             segment_end = relative_points[i + 1]
             
-            if xdot[i]> 0: #in front of car
+            if tuple(self.points[i]) not in self.traveled_points: #in front of car
                 distance = self.find_minimum_distance(segment_start, segment_end, np.array([0,0,0]))
                 if distance < min_distance:
                     min_distance = distance
@@ -162,7 +178,7 @@ class PurePursuit(Node):
         elif closest_point is None:
             # self.get_logger().info("no points in front of car")
             self._succeed = False
-            return True, None, None
+            return False, None, None
         
         # self.publish_marker_array(self.relative_point_pub, np.array([closest_point]), R, self.current_pose, rgb=[1.0, 0.0, 0.0])
         return closest_point, index, distance_to_goal
@@ -185,22 +201,28 @@ class PurePursuit(Node):
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
         # theta += np.pi
 
+        drive_cmd = AckermannDriveStamped()
         if self.points is not None:
-            differences = self.points - self.current_pose
-            relative_points = np.array([np.matmul(i,R) for i in differences])
-            closest_point, index, distance_to_goal = \
-                                        self.find_closest_point_on_trajectory(relative_points, R)
-
+            closest_point, dist, idx = self.find_closest_point(R)
+            
             # self.get_logger().info("index: " + str(index))
             # self.get_logger().info("distance to goal: " + str(distance_to_goal))
 
-            drive_cmd = AckermannDriveStamped()
-
-            if isinstance(closest_point, bool):
+            distance_to_goal = self.distance(np.array([0,0,0]), self.goal-self.current_pose)
+            if distance_to_goal< 0.5:
                 drive_cmd.drive.speed = 0.0
                 drive_cmd.drive.steering_angle = 0.0
             else:
-                pt = self.points[index]
+                # if self.last_point is None:
+                #     self.last_point = self.points[0]
+                #     self.traveled_points.add(tuple(self.points[0]))
+                if dist < 0.5: #probs different irl
+                    # self.traveled_points.add(tuple(closest_point))
+                    self.points = np.delete(self.points,idx,axis=0)
+                # self.get_logger().info(f'{self.traveled_points}')
+                global_intersect = np.matmul(closest_point, np.linalg.inv(R)) + self.current_pose
+                self.intersection.publish(self.to_marker(global_intersect, 0, [0.0, 1.0, 0.0], 0.5))
+                # pt = self.points[index]
                 # norm_track_theta = (pt[2] + np.pi) % (2 * np.pi) - np.pi
                 # norm_theta = (theta + np.pi) % (2 * np.pi) - np.pi
                 # error_from_trajectory = closest_point[1]
@@ -211,12 +233,13 @@ class PurePursuit(Node):
                 #     error -= np.pi
                 # elif error < -np.pi:
                 #     error += np.pi
-                error = np.arctan2( np.sin(pt[2]-theta), np.cos(pt[2]-theta) )
+                error = 0
+                # error = np.arctan2( np.sin(closest_point[2]-theta), np.cos(closest_point[2]-theta) )
                 # error = error - 2*np.pi if error > np.pi else error + np.pi
                 # error = (error + np.pi) % (2 * np.pi) - np.pi
 
                 theta_xc = np.arctan2(closest_point[1], speed)
-                self.get_logger().info(f'track: {pt[2]}, theta: {theta}')
+                self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
                 self.get_logger().info(f'heading: {error} cross track: {theta_xc}')
 
                 error += theta_xc
@@ -225,10 +248,18 @@ class PurePursuit(Node):
 
                 #what worked for speed 3.0 - Kp 0.7, Kd = Kp/6.0, Ki = 0 (didnt test), turning angle += -0.04
 
+
+                ####### BOT TUNING DO NOT CHANGE #########
                 Kp = .25# previous Kp is 0.635
                 Kd = Kp / 6.0
                 Ki = 0#-Kp / 2.0
-                # self.previous_errors.append(error)
+                # # self.previous_errors.append(error)
+
+                ############# SIM PARAMS ##########
+                # Kp = .25
+                # Kd = Kp/6.0
+                # Ki = 0
+
 
                 P = Kp* ( error )
                 if self.last_time is not None:
@@ -256,6 +287,10 @@ class PurePursuit(Node):
                     turning_angle = self.MAX_TURN if turning_angle > 0 else -self.MAX_TURN
 
 
+                if closest_point[0] < 0:
+                    speed = -1.6
+                    turning_angle = -turning_angle
+
                 drive_cmd.drive.speed = speed
                 drive_cmd.drive.steering_angle = turning_angle
 
@@ -268,8 +303,21 @@ class PurePursuit(Node):
                     self.integral_count = 0
 
 
-                self.drive_pub.publish(drive_cmd)
+            self.drive_pub.publish(drive_cmd)
 
+    def reset_distances(self):
+        distances = []
+        num_points = len(self.points)
+
+        for i in range(num_points):
+            if i == 0:
+                distances.append(0)
+            else:
+                p0 = self.points[i - 1]
+                p1 = self.points[i]
+                delta = np.array([p0[0] - p1[0], p0[1] - p1[1]])
+                distances.append(distances[i - 1] + np.linalg.norm(delta))
+        return distances
         
     def trajectory_callback(self, msg):
         """
@@ -288,6 +336,9 @@ class PurePursuit(Node):
         self.trajectory.fromPoseArray(msg)
         self.points = np.array(self.trajectory.points)
         if self.points.shape[-1] != 3:
+            self.get_logger().info('hi')
+            # self.points = self.reset_distances()
+            # self.update
             self.trajectory.updatePoints(self.points)
             self.points = np.array(self.trajectory.points)
         self.goal = self.points[-1]
@@ -295,11 +346,41 @@ class PurePursuit(Node):
 
         self.initialized_traj = True
 
+    def to_marker(self,position,id = 1,rgb=[1.0,0.0,0.0],scale=0.25):
+        marker = Marker()
+        marker.header.frame_id = "/map"  # Set the frame id
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = "/followed_trajectory/trajectory"
+        marker.id = id
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.pose.position.x = position[0]
+        marker.pose.position.y = position[1]
+        marker.pose.position.z = 0.0
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = scale
+        marker.scale.y = scale
+        marker.scale.z = scale
+        marker.color.a = 1.0
+        marker.color.r = rgb[0]
+        marker.color.g = rgb[1]
+        marker.color.b = rgb[2]
 
+        return marker
+    
 def main(args=None):
     rclpy.init(args=args)
     follower = PurePursuit()
-    rclpy.spin(follower)
+    try:
+        rclpy.spin(follower)
+    except KeyboardInterrupt:
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.drive.speed = 0.0
+        drive_cmd.drive.steering_angle = 0.0
+        follower.drive_pub.publish(drive_cmd)
     rclpy.shutdown()
 
 
