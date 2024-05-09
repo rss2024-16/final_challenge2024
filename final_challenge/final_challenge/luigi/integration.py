@@ -190,9 +190,6 @@ def main():
     sm = StateMachine(outcomes=[SUCCEED, ABORT, CANCEL])
     nav_sm = StateMachine(outcomes=[SUCCEED, ABORT, CANCEL])
 
-    plan = Plan2State()
-    nav = Nav2State()
-
     # add states
 
     #this would be basement point publisher
@@ -257,7 +254,7 @@ def main():
     #blackboard.car_side switch
     nav_sm.add_state(
         "PLANNING_LANE",
-        Plan2State,
+        Plan2State(),
         transitions={
             SUCCEED: "FOLLOWING_LANE",
             CANCEL: CANCEL,
@@ -267,7 +264,7 @@ def main():
     #blackboard.trajectory: new trajectory depending on car lane
     nav_sm.add_state(
         "FOLLOWING_LANE",
-        Nav2State, #PID
+        Nav2State(), #PID
         transitions={
             SUCCEED: "PLANNING_PATH",
             CANCEL: CANCEL,
@@ -277,7 +274,7 @@ def main():
     #blackboard.follow_lane = False
     nav_sm.add_state(
         "PLANNING_PATH",
-        Plan2State, #BFS
+        Plan2State(), #BFS
         transitions={
             SUCCEED: "FOLLOWING_PATH",
             CANCEL: CANCEL,
