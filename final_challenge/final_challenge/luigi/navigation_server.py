@@ -29,6 +29,7 @@ class NavigationActionServer(Node):
 
         trajectory = goal_handle.request.trajectory #PoseArray
         follow_lane = goal_handle.request.follow_lane
+        self.node.driving_to_shell = not follow_lane
 
         self.traj_pub.publish(trajectory) #now the pursuit should start running
 
