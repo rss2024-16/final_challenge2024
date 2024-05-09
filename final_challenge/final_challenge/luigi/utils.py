@@ -58,7 +58,7 @@ class LaneProjection():
         lane_traj.updatePoints(lane_traj.points[:])
 
         # Find the nearest point on the trajectory to our location
-        loc = (location.point.x, location.point.y)
+        loc = (location.position.x, location.position.y)
         nearest_point, nearest_index = self.find_nearest(loc, lane_traj.points)
 
         # Get the appropriate angle to follow the lane 

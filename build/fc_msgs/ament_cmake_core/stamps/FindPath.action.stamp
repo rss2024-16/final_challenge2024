@@ -1,7 +1,0 @@
-geometry_msgs/PoseArray s_and_t
-bool follow_lane
-bool right
----
-geometry_msgs/PoseArray trajectory
----
-string outcome
