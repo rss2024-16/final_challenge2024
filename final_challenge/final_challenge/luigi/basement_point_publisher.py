@@ -198,6 +198,7 @@ class BasementPointPublisher(State):
                     blackboard.init_pose = self.initial_location
                     blackboard.car_side = self.car_side
                     blackboard.shell_sides = self.shell_sides
+                    blackboard.car_position = self.initial_location
 
                     marker_array = MarkerArray()
                     for i, pose in enumerate(self.array):

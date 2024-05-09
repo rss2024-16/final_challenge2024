@@ -1,0 +1,14 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from fc_msgs/msg/StopLightLocation.msg
+// generated code does not contain a copyright notice
+
+
+module fc_msgs {
+  module msg {
+    struct StopLightLocation {
+      float x_pos;
+
+      float y_pos;
+    };
+  };
+};

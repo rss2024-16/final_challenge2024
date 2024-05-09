@@ -1,0 +1,6 @@
+geometry_msgs/PoseArray trajectory
+bool follow_lane
+---
+geometry_msgs/Pose car_position
+---
+string outcome
