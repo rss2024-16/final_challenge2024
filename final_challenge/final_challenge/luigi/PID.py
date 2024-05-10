@@ -55,12 +55,20 @@ class PID(YasminNode):
 
         self.points = None
         self.current_pose = None
-        self.car_position = None
         self.intersections = None
         self.turning_markers = []
         self.goal = None
 
+        self.last_points = None
+        self.distance_check = False
+        self.last_time = None
+        self.last_error = None
+        self.last_integral = None
+        self.integral_count = 0
+        self.last_point = None
+
         self._succeed = None
+    
         
         self.MAX_TURN = 0.34
 
@@ -95,17 +103,6 @@ class PID(YasminNode):
 
         self.all_controls = []
 
-
-        self.distance_check = False
-        self.last_time = None
-        self.last_error = None
-        self.last_integral = None
-        self.integral_count = 0
-
-        self.last_point = None
-
-        self.last_points = None
-
         self.index = 0
         
         self.traveled_points = set()
@@ -113,7 +110,9 @@ class PID(YasminNode):
     @property
     def success(self): return self._succeed
 
-    def reset_success(self): self._succeed = None
+    def reset_success(self): 
+        self._succeed = None
+        self.index = 0
 
     def distance(self, p1, p2):
         return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
@@ -134,114 +133,120 @@ class PID(YasminNode):
 
         theta = orientation[2]
         R = self.transform(theta)
-        self.car_position = odometry_msg.pose.pose
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
 
 
         drive_cmd = AckermannDriveStamped()
-        if self.points is not None:
-            pt = self.points[self.index]
-            closest_point = np.matmul(pt-self.current_pose,R)
-            dist = self.distance(np.array([0,0,0]),closest_point)
-            distance_to_goal = self.distance(np.array([0,0,0]), np.matmul(self.goal-self.current_pose, R)) 
+        if self.last_points is None or np.any(self.points != self.last_points):
 
-            if (self.follow_lane and distance_to_goal < 3.0) or self._succeed:
-                # self.get_logger().info("Within radius...")
-                drive_cmd.drive.speed = 0.0
-                drive_cmd.drive.steering_angle = 0.0
-                self.drive_pub.publish(drive_cmd)
-                self._succeed = True
-                self.last_point = None
-            elif distance_to_goal < 0.5 or self._succeed:
-                self.get_logger().info("Reached goal...")
-                drive_cmd.drive.speed = 0.0
-                drive_cmd.drive.steering_angle = 0.0
-                self.drive_pub.publish(drive_cmd)
-                self.last_point = None
-                self._succeed = True
-            else:
-                if self.last_point is None:
-                    self.last_point = closest_point
-                    
-                if dist < 0.2 or closest_point[0]*self.last_point[0] < 0: #probs different irl
-                    if self.index != len(self.points)-1:
-                        self.index+=1
-                        new_pt = self.points[self.index]
-                        self.last_point = np.matmul(new_pt-self.current_pose,R)
+            if self.points is not None:
+                pt = self.points[self.index]
+                closest_point = np.matmul(pt-self.current_pose,R)
+                dist = self.distance(np.array([0,0,0]),closest_point)
+                distance_to_goal = self.distance(np.array([0,0,0]), np.matmul(self.goal-self.current_pose, R)) 
 
                 global_intersect = np.matmul(closest_point, np.linalg.inv(R)) + self.current_pose
                 self.intersection.publish(self.to_marker(global_intersect, 0, [0.0, 1.0, 0.0], 0.5))
 
-                speed = 2.0
-
-                orientation_error = np.arctan2( np.sin(closest_point[2]-theta), np.cos(closest_point[2]-theta) )
-
-                theta_xc = np.arctan2(closest_point[1], speed)
-                # self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
-                # self.get_logger().info(f'heading: {error} cross track: {theta_xc}')
-
-                error = 0.3*orientation_error + 0.7*theta_xc
-
-                drive_cmd = AckermannDriveStamped()
-
-                #what worked for speed 3.0 - Kp 0.7, Kd = Kp/6.0, Ki = 0 (didnt test), turning angle += -0.04
-
-
-                ####### BOT TUNING DO NOT CHANGE #########
-                Kp = .25# previous Kp is 0.635
-                Kd = Kp / 6.0
-                Ki = 0#-Kp / 2.0
-                # # self.previous_errors.append(error)
-
-                ############# SIM PARAMS ##########
-                # Kp = .25
-                # Kd = Kp/6.0
-                # Ki = 0
-
-
-                P = Kp* ( error )
-                if self.last_time is not None:
-                    dt = self.get_clock().now().nanoseconds/1e9 - self.last_time
-                    I = self.last_integral + Ki*error*dt
-                    self.integral_count += 1
-                    D = Kd * (error-self.last_error)/dt
+                if (self.follow_lane and distance_to_goal < 3.0) or self._succeed:
+                    self.get_logger().info("Within radius...")
+                    drive_cmd.drive.speed = 0.0
+                    drive_cmd.drive.steering_angle = 0.0
+                    self.drive_pub.publish(drive_cmd)
+                    self.last_points = self.points
+                    self.last_point = None
+                    self._succeed = True
+                elif distance_to_goal < 0.5 or self._succeed:
+                    self.get_logger().info("Reached goal...")
+                    drive_cmd.drive.speed = 0.0
+                    drive_cmd.drive.steering_angle = 0.0
+                    self.drive_pub.publish(drive_cmd)
+                    self.last_points = self.points
+                    self.last_point = None
+                    self._succeed = True
                 else:
-                    I = 0
-                    D = 0
+                    if self.last_point is None:
+                        self.last_point = closest_point
+                        
+                    if dist < 0.2 or closest_point[0]*self.last_point[0] < 0: #probs different irl
+                        if self.index != len(self.points)-1:
+                            self.index+=1
+                            new_pt = self.points[self.index]
+                            self.last_point = np.matmul(new_pt-self.current_pose,R)
 
-                control = P + I + D
-                # self.get_logger().info(f'{error}')
-                # self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
-                self.previous_errors.append(error)
-                self.all_controls.append((P,I,D))
+                    speed = 2.4
 
-                turning_angle = control
-                # turning_angle += -0.045
-                turning_angle += -0.03
+                    orientation_error = np.arctan2( np.sin(pt[2]-theta), np.cos(pt[2]-theta) )
 
-                # self.get_logger().info(f'{turning_angle}')
-                            
-                if abs(turning_angle) > self.MAX_TURN:
-                    turning_angle = self.MAX_TURN if turning_angle > 0 else -self.MAX_TURN
+                    theta_xc = np.arctan2(closest_point[1], speed)
+                    # self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
+                    # self.get_logger().info(f'heading: {orientation_error} cross track: {theta_xc}')
 
+                    error = 0.8*orientation_error + 1.2*theta_xc
 
-                if closest_point[0] < 0:
-                    speed = -1.6
-                    turning_angle = turning_angle
+                    drive_cmd = AckermannDriveStamped()
 
-                drive_cmd.drive.speed = speed
-                drive_cmd.drive.steering_angle = turning_angle
-
-                self.drive_pub.publish(drive_cmd)
-                self.last_time = self.get_clock().now().nanoseconds/1e9
-                self.last_error = error
-                self.last_integral = I
-                if self.integral_count == 15:
-                    self.last_integral = 0
-                    self.integral_count = 0
+                    #what worked for speed 3.0 - Kp 0.7, Kd = Kp/6.0, Ki = 0 (didnt test), turning angle += -0.04
 
 
-            self.drive_pub.publish(drive_cmd)
+                    ####### BOT TUNING DO NOT CHANGE #########
+                    Kp = .25# previous Kp is 0.635
+                    Kd = Kp / 6.0
+                    Ki = 0#-Kp / 2.0
+                    # # self.previous_errors.append(error)
+
+                    ############# SIM PARAMS ##########
+                    # Kp = .25
+                    # Kd = Kp/6.0
+                    # Ki = 0
+
+
+                    P = Kp* ( error )
+                    if self.last_time is not None:
+                        dt = self.get_clock().now().nanoseconds/1e9 - self.last_time
+                        I = self.last_integral + Ki*error*dt
+                        self.integral_count += 1
+                        D = Kd * (error-self.last_error)/dt
+                    else:
+                        I = 0
+                        D = 0
+
+                    control = P + I + D
+                    # self.get_logger().info(f'{error}')
+                    # self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
+                    self.previous_errors.append(error)
+                    self.all_controls.append((P,I,D))
+
+                    turning_angle = control
+                    # turning_angle += -0.045
+                    turning_angle += -0.03
+
+                    # self.get_logger().info(f'{turning_angle}')
+                                
+                    if abs(turning_angle) > self.MAX_TURN:
+                        turning_angle = self.MAX_TURN if turning_angle > 0 else -self.MAX_TURN
+
+
+                    if closest_point[0] < 0:
+                        speed = -2.0
+                        turning_angle = turning_angle
+
+                    drive_cmd.drive.speed = speed
+                    drive_cmd.drive.steering_angle = turning_angle
+
+                    self.drive_pub.publish(drive_cmd)
+                    self.last_time = self.get_clock().now().nanoseconds/1e9
+                    self.last_error = error
+                    self.last_integral = I
+                    if self.integral_count == 15:
+                        self.last_integral = 0
+                        self.integral_count = 0
+
+
+                    self.drive_pub.publish(drive_cmd)
+        else:
+            # self.get_logger().info('what')
+            pass
         
     def trajectory_callback(self, msg):
         """
@@ -265,7 +270,9 @@ class PID(YasminNode):
             # self.update
             self.trajectory.updatePoints(self.points)
             self.points = np.array(self.trajectory.points)
-        self.goal = self.points[-1]
+        # self.index = 0
+        # self.goal = self.points[-1]
+        # self._succeed = None
         self.trajectory.publish_viz(duration=0.0)
 
         self.initialized_traj = True

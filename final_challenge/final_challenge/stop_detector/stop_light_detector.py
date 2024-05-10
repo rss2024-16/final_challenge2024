@@ -39,7 +39,7 @@ class StopLightDetector(Node):
       # (We know this pixel corresponds to a point on the ground plane)
       # publish this pixel (u, v) to the /relative_cone_px topic; the homography transformer will
       # convert it to the car frame.
-      
+
         image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
 
       #344,178.5
@@ -72,7 +72,6 @@ class StopLightDetector(Node):
             center_pixel.v = float(y + h/2)
 
             self.stoplight_pub.publish(center_pixel)
-
             debug_msg = self.bridge.cv2_to_imgmsg(img, "bgr8")
             self.debug_pub.publish(debug_msg)
 
