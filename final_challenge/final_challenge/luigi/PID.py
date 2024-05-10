@@ -48,14 +48,13 @@ class PID(YasminNode):
         # self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         # self.drive_topic = self.get_parameter('drive_topic').get_parameter_value().string_value
         self.odom_topic = "/pf/pose/odom"
-        self.drive_topic = "/vesc/input/navigation"
-        #self.drive_topic = '/drive'
+        # self.drive_topic = "/vesc/input/navigation"
+        self.drive_topic = '/drive'
 
         self.follow_lane = None
 
         self.points = None
         self.current_pose = None
-        self.car_position = None
         self.intersections = None
         self.turning_markers = []
         self.goal = None
@@ -111,7 +110,9 @@ class PID(YasminNode):
     @property
     def success(self): return self._succeed
 
-    def reset_success(self): self._succeed = None
+    def reset_success(self): 
+        self._succeed = None
+        self.index = 0
 
     def distance(self, p1, p2):
         return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
@@ -132,8 +133,6 @@ class PID(YasminNode):
 
         theta = orientation[2]
         R = self.transform(theta)
-        self.car_position = odometry_msg.pose.pose
-        # self.get_logger().info(f'position: {self.car_position}')
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
 
 
@@ -213,7 +212,7 @@ class PID(YasminNode):
                         D = 0
 
                     control = P + I + D
-                    self.get_logger().info(f'{error}')
+                    # self.get_logger().info(f'{error}')
                     # self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
                     self.previous_errors.append(error)
                     self.all_controls.append((P,I,D))
@@ -272,7 +271,7 @@ class PID(YasminNode):
             self.trajectory.updatePoints(self.points)
             self.points = np.array(self.trajectory.points)
         # self.index = 0
-        self.goal = self.points[-1]
+        # self.goal = self.points[-1]
         # self._succeed = None
         self.trajectory.publish_viz(duration=0.0)
 

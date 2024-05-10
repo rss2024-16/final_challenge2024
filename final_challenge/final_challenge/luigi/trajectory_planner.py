@@ -85,7 +85,7 @@ class PathPlan(YasminNode):
             # path = path[0]
 
         if len(path) == 0 or path is None: 
-            self.get_logger().info("No path found!")
+            self.get_logger().info("No path found!!")
             return
         
         self.publish_path(path)
