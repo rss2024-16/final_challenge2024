@@ -2,6 +2,8 @@ geometry_msgs/PoseArray s_and_t
 bool follow_lane
 bool right
 nav_msgs/OccupancyGrid map
+int32 car_idx
+int32 projection_idx
 ---
 geometry_msgs/PoseArray trajectory
 ---

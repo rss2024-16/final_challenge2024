@@ -62,6 +62,7 @@ class LightDetector(Node):
         self.pose = (x, y)
 
     def image_callback(self, img_msg):
+        self.get_logger().info(f'{self.state}')
         # Minimum distance from robot to each stoplight
         min_dist = min(np.sqrt((self.pose[0] - x_i)**2 + (self.pose[1] - y_i)**2) for x_i, y_i in self.stoplights)
         
@@ -93,22 +94,29 @@ class LightDetector(Node):
 
             if is_stop:
                 # BOTTOM:TOP, LEFT:RIGHT, 
-                segment_img = image[location[1]:location[3], location[0]:location[2], :]
+                segment_img = image[location[1]:location[3] - int((2/3)*(location[3] - location[1])), location[0]:location[2], :]
 
-                detected, image_marked = sl_color_segmentation(segment_img, None)
+                detected, image_marked, w, h = sl_color_segmentation(segment_img, None)
 
                 debug_msg_2 = self.bridge.cv2_to_imgmsg(image_marked, "bgr8")
                 self.traffic_light_publisher.publish(debug_msg_2)
 
-                if detected:
+                stop_area = abs((location[3] - location[1]) * (location[2] - location[0]))
+                light_area = w * h if w is not None else 0
+
+                if detected and light_area >= stop_area / 10:
+                    self.get_logger().info('in detected')
                     self.state = State.WAIT
                     self.start_time = time.time()
                     self.end_time = self.start_time + self.buffer
 
 
-                debug_img = cv2.rectangle(image, (location[0], location[1]), (location[2], location[3]), (0,0,255), 10)
-                debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
-                self.box_publisher.publish(debug_msg)
+            debug_img = cv2.rectangle(image, (location[0], location[1]), (location[2], location[3]), (0,0,255), 10)
+            debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
+            self.box_publisher.publish(debug_msg)
+        
+        else:
+            self.state = State.DETECT
 
 
 def main(args=None):
@@ -132,53 +140,64 @@ def timer(seconds):
 
 
 def sl_color_segmentation(img, template):
-	"""
-	Input:
-		img: np.3darray; the input image. BGR.
-		template_file_path; Not required, but can optionally be used to automate setting hue filter values.
-	Return:
-		detected True or False
-	"""
+    """
+    Input:
+    img: np.3darray; the input image. BGR.
+    template_file_path; Not required, but can optionally be used to automate setting hue filter values.
+    Return:
+    detected True or False
+    """
     # Blur
-	#img = cv2.GaussianBlur(img, (5,5), 0)
-	#img = cv2.medianBlur(img, 5)
-	img_blur = cv2.blur(img, (4,4))
-	img_blur = cv2.bilateralFilter(img_blur, 5, 75, 75)
+    #img = cv2.GaussianBlur(img, (5,5), 0)
+    #img = cv2.medianBlur(img, 5)
+    # img_blur = cv2.blur(img, (4,4))
+    # img_blur = cv2.bilateralFilter(img_blur, 5, 75, 75)
 
     # Convert bgr to hsv
-	hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-	RED_THRESHOLD = [
-		([0, 160, 100], [10, 255, 255]),
-        ([160, 160, 100], [180, 255, 255])
-	]
+    # RED_THRESHOLD = [
+    # 	([3, 160, 140], [10, 255, 255]),
+    #     ([160, 160, 140], [180, 255, 255])
+    # ]	
+    RED_THRESHOLD = [
+        ([0, 220, 240], [35, 255, 255]),
+        ([29, 20, 240], [31, 255, 255])
+    ]
+    # RED_THRESHOLD = [
+    #     ([0, 0, 150], [40, 30, 255]),
+    #     ([170, 0, 150], [180, 30, 255])
+    # ]
+    
 
     # Set lower and upper bounds for stoplight
-	lower_bound = np.array(RED_THRESHOLD[0][0])
-	upper_bound = np.array(RED_THRESHOLD[0][1])
-	lower_bound2 = np.array(RED_THRESHOLD[1][0])
-	upper_bound2 = np.array(RED_THRESHOLD[1][1])
+    lower_bound = np.array(RED_THRESHOLD[0][0])
+    upper_bound = np.array(RED_THRESHOLD[0][1])
+    lower_bound2 = np.array(RED_THRESHOLD[1][0])
+    upper_bound2 = np.array(RED_THRESHOLD[1][1])
 
-	# Mask out our colors
-	mask1 = cv2.inRange(hsv, lower_bound, upper_bound)
-	mask2 = cv2.inRange(hsv, lower_bound2, upper_bound2)
-	mask = mask1 | mask2
+    # Mask out our colors
+    mask1 = cv2.inRange(hsv, lower_bound, upper_bound)
+    mask2 = cv2.inRange(hsv, lower_bound2, upper_bound2)
+    mask = mask1 | mask2
 
-	# Find contours from masks
-	contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # Find contours from masks
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-	# If we have contours
-	if len(contours) != 0:
+    # If we have contours
+    if len(contours) != 0:
 
-		# Find the biggest countour by area
-		c = max(contours, key = cv2.contourArea)
+        # Find the biggest countour by area
+        c = max(contours, key = cv2.contourArea)
 
-		# Get a bounding rectangle around that contour
-		x, y, w, h = cv2.boundingRect(c)
+        # Get a bounding rectangle around that contour
+        x, y, w, h = cv2.boundingRect(c)
 
-		# Add rectangle
-		cv2.rectangle(img, (x,y), (x+w,y+h), (0,0,255), 2)
 
-		return True, img
 
-	return False, img
+        # Add rectangle
+        cv2.rectangle(img, (x,y), (x+w,y+h), (0,0,255), 2)
+
+        return True, img, w, h
+
+    return False, img, None, None

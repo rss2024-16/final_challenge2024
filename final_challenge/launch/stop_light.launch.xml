@@ -1,0 +1,6 @@
+<launch>
+
+  <node pkg="final_challenge" name="stoplight" exec="stoplight" output="screen">
+  </node>
+
+</launch>

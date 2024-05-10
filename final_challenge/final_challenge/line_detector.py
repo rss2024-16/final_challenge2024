@@ -7,7 +7,8 @@ from cv_bridge import CvBridge
 import numpy as np
 from sensor_msgs.msg import Image
 # from geometry_msgs.msg import Point
-from vs_msgs.msg import ConeLocationPixel
+from vs_msgs.msg import ConeLocationPixel, PixelLocation
+
 
 class LineDetector(Node):
     def __init__(self):
@@ -17,7 +18,7 @@ class LineDetector(Node):
 
         self.subscriber = self.create_subscription(Image, "/zed/zed_node/rgb_gray/image_rect_gray", self.callback, 1)
         
-        self.publisher = self.create_publisher(ConeLocationPixel, "/relative_cone_px",5)
+        self.publisher = self.create_publisher(PixelLocation, "/line_location",5)
 
         self.img_view = self.create_publisher(Image,'/line_image',1)
         self.cropped_img = self.create_publisher(Image,'/cropped',1)
@@ -76,16 +77,16 @@ class LineDetector(Node):
         t1 = self.get_clock().now().nanoseconds/1e9
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
 
-        image = cv2.resize(image,(640,480))
+        # image = cv2.resize(image,(640,480))
 
         height,width,_ = image.shape
 
-        midpoint = width // 2
+        midpoint = 370#width // 2 + 30
         # crop_mid_scale = 0.6
         # mid_start = int( midpoint*crop_mid_scale )
         # image[:,mid_start:width-mid_start, :] = 0
 
-        v = 200
+        v = 215
 
         lower = int((1-self.crop_scale)*v)
         image[:lower,:,:] = 0
@@ -97,19 +98,20 @@ class LineDetector(Node):
 
         curved_lines = []
 
-        start_point = int( .25*width )
+        start_point = int( .4*width )
         # image[:,0:start_point,:] = 0
         end_point = int( width - start_point )
 
         
-        for x in range(start_point,end_point,PIXEL_STEP):
-            # curved_points = []
-            # for y in range(0, height):
-            #     val = (int(x) + int(RADIUS*np.sin(2*np.pi*y/(height/6))), y)
-            #     curved_points.append(val)
-            # cv2.polylines(image, np.array([curved_points]), isClosed=False, color=(0, 0, 0), thickness=11)
-            # curved_lines.append(curved_points)
-            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=10)
+        # for x in range(start_point,end_point,PIXEL_STEP):
+        #     # curved_points = []
+        #     # for y in range(0, height):
+        #     #     val = (int(x) + int(RADIUS*np.sin(2*np.pi*y/(height/6))), y)
+        #     #     curved_points.append(val)
+        #     # cv2.polylines(image, np.array([curved_points]), isClosed=False, color=(0, 0, 0), thickness=11)
+        #     # curved_lines.append(curved_points)
+        #     cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=10)
+        # cv2.line(image,(midpoint,0),(midpoint,height),color=(0,0,0),thickness=40)
 
         # self.get_logger().info(f'{curved_lines}')
 
@@ -130,16 +132,16 @@ class LineDetector(Node):
 
         PIXEL_STEP = 80
 
-        start_point = int( .25*width )
-        end_point = int( width - start_point )
+        # start_point = int( .25*width )
+        # end_point = int( width - start_point )
 
-        for x in range(start_point,end_point,PIXEL_STEP):
-            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
+        # for x in range(start_point,end_point,PIXEL_STEP):
+        #     cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
 
-        OFFSET = 35
+        OFFSET = -10#30
 
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(image, 220, 255, cv2.THRESH_BINARY)
 
         dst = cv2.Canny(thresh,50,200,None,3)
 
@@ -161,18 +163,28 @@ class LineDetector(Node):
             x1r,y1r,x2r,y2r = right_closest
             x1l,y1l,x2l,y2l = left_closest
 
+            mpr = [ (x1r+x2r)/2, (y1r+y2r)/2 ]
+            mpl = [ (x1l+x2l)/2, (y1l+y2l)/2 ]
+
+            msg = PixelLocation()
+            msg.u1 = mpr[0]
+            msg.u2 = mpl[0]
+            msg.v1 = mpr[1]
+            msg.v2 = mpr[1]
+            self.publisher.publish(msg)
+
             # self.get_logger().info(f'left slope: {(x1l-x2l)/(y2l-y1l)}')
             # self.get_logger().info(f'right slope: {(x1r-x2r)/(y1r-y2r)}')
 
-            mpr = [ (x1r+x2r)/2, (y1r+y2r)/2 ]
-            mpl = [ (x1l+x2l)/2, (y1l+y2l)/2 ]
             avg = [(mpr[0]+mpl[0])/2, (mpl[1]+mpr[1])/2]
 
-            msg = ConeLocationPixel()
-            msg.u = float(avg[0]) + OFFSET #publish to line follower
-            msg.v = float(avg[1])
 
-            self.publisher.publish(msg)
+
+            # msg = ConeLocationPixel()
+            # msg.u = float(avg[0]) + OFFSET #publish to line follower
+            # msg.v = float(avg[1])
+
+            # self.publisher.publish(msg)
 
             cv2.line(cdstP, (left_closest[0], left_closest[1]), (left_closest[2], left_closest[3]), (0,0,255), 3, cv2.LINE_AA)
             cv2.line(cdstP, (right_closest[0], right_closest[1]), (right_closest[2], right_closest[3]), (0,0,255), 3, cv2.LINE_AA)
