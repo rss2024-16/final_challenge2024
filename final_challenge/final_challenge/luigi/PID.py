@@ -60,7 +60,16 @@ class PID(YasminNode):
         self.turning_markers = []
         self.goal = None
 
+        self.last_points = None
+        self.distance_check = False
+        self.last_time = None
+        self.last_error = None
+        self.last_integral = None
+        self.integral_count = 0
+        self.last_point = None
+
         self._succeed = None
+    
         
         self.MAX_TURN = 0.34
 
@@ -95,16 +104,6 @@ class PID(YasminNode):
 
         self.all_controls = []
 
-
-        self.distance_check = False
-        self.last_time = None
-        self.last_error = None
-        self.last_integral = None
-        self.integral_count = 0
-
-        self.last_points = None
-        self.last_point = None
-
         self.index = 0
         
         self.traveled_points = set()
@@ -134,6 +133,7 @@ class PID(YasminNode):
         theta = orientation[2]
         R = self.transform(theta)
         self.car_position = odometry_msg.pose.pose
+        # self.get_logger().info(f'position: {self.car_position}')
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
 
 
@@ -180,8 +180,8 @@ class PID(YasminNode):
                     orientation_error = np.arctan2( np.sin(pt[2]-theta), np.cos(pt[2]-theta) )
 
                     theta_xc = np.arctan2(closest_point[1], speed)
-                    self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
-                    self.get_logger().info(f'heading: {orientation_error} cross track: {theta_xc}')
+                    # self.get_logger().info(f'track: {closest_point[2]}, theta: {theta}')
+                    # self.get_logger().info(f'heading: {orientation_error} cross track: {theta_xc}')
 
                     error = 0.8*orientation_error + 1.2*theta_xc
 
@@ -213,7 +213,7 @@ class PID(YasminNode):
                         D = 0
 
                     control = P + I + D
-                    # self.get_logger().info(f'{error}')
+                    self.get_logger().info(f'{error}')
                     # self.get_logger().info(f'P: {round(P,3)} I: {round(I,3)} D: {round(D,3)}')
                     self.previous_errors.append(error)
                     self.all_controls.append((P,I,D))

@@ -28,7 +28,7 @@ class PathPlanActionServer(Node):
         map = goal_handle.request.map
         car_idx = goal_handle.request.car_idx
         proj_idx = goal_handle.request.projection_idx
-        self.get_logger().info(f'{car_idx},{proj_idx}')
+        # self.get_logger().info(f'{s_and_t}')
 
         if follow_lane: #LOAD LANE
             trajectory = LineTrajectory(Node("lane_trajectory"))
@@ -43,6 +43,7 @@ class PathPlanActionServer(Node):
 
         else: #BFS
             self.node.occ_map = Map(map)
+            # self.get_logger().info(f'{s}')
             s = [s_and_t.poses[0].position.x, s_and_t.poses[0].position.y, None]
             t = [s_and_t.poses[1].position.x, s_and_t.poses[1].position.y, None]
             self.node.plan_path(s, t)

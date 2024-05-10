@@ -1,6 +1,13 @@
 <launch>
 
-  <node pkg="final_challenge" name="stop_detector" exec="stop_detector" output="screen">
+   <node pkg="localization" exec="particle_filter" name="particle_filter" output="screen">
+      <param from="$(find-pkg-share localization)/real_params.yaml"/>
   </node>
 
+  <node pkg="final_challenge" name="parking_controller_stopsign" exec="parking_controller_stopsign" output="screen">
+  	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
+  </node>
+
+  <node pkg="visual_servoing" name="homography_transformer" exec="homography_transformer" output="screen">
+  </node>
 </launch>
