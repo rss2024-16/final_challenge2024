@@ -2,16 +2,12 @@ import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
 
-from fc_msgs.action import FindPath
-from geometry_msgs.msg import Point, PointStamped, Pose, PoseArray
+from geometry_msgs.msg import Pose,PoseArray
 
-from .trajectory_planner import PathPlan
 from fc_msgs.action import NavigateToPose
-from .PID import PurePursuit
+from .PID import PID
 import time
-from yasmin_ros.yasmin_node import YasminNode
-from std_msgs.msg import String
-
+import numpy as np
 
 class NavigationActionServer(Node):
 
@@ -23,16 +19,23 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PurePursuit()
-        self.traj_pub = self.create_publisher(PoseArray,
-                                                "/trajectory/current",
-                                                1)
+        self.node = PID()
+        self.traj_pub = self.create_publisher(PoseArray, "/trajectory/current", 1)
         self.get_logger().info('Navigation Action Server Initialized')
             
     def execute_callback(self, goal_handle):
         self.get_logger().info('Server Navigating...')
 
-        trajectory = goal_handle.request.trajectory #PoseArray
+        trajectory : PoseArray = goal_handle.request.trajectory 
+        follow_lane = goal_handle.request.follow_lane
+        goal = goal_handle.request.goal
+        self.node.follow_lane = follow_lane
+        self.node.goal = np.array([goal.position.x, goal.position.y, 0])
+
+        self.get_logger().info(f"Follow Lane: {follow_lane}")
+        # self.node.get_logger().info(f"Follow Lane: {follow_lane}")
+        # self.node.get_logger().info(f"Trajectory: {trajectory}")
+        # self.node.get_logger().info(f"Driving to Shell: {self.node.driving_to_shell}")
 
         self.traj_pub.publish(trajectory) #now the pursuit should start running
 
@@ -50,8 +53,9 @@ class NavigationActionServer(Node):
             feedback_msg.outcome = "success"
             self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
             goal_handle.publish_feedback(feedback_msg)
-            # time.sleep(7) #pick up shell
             goal_handle.succeed()
+            result = NavigateToPose.Result()
+            result.car_position = self.node.car_position
             return NavigateToPose.Result()
         else:
             self.node.reset_success()
