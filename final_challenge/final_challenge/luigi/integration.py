@@ -42,8 +42,10 @@ class Nav2State(ActionState):
             self.handle_result  # cb to process the response
         )
         self.follow_lane = None
+        self.node = Node('fuck_you')
 
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        print(f'traj {blackboard.trajectory}')
         self.follow_lane = blackboard.follow_lane
         goal = NavigateToPose.Goal()
         goal.trajectory = blackboard.trajectory
@@ -55,6 +57,7 @@ class Nav2State(ActionState):
         if result is None:
             return ABORT  # Handle if the action fails
         blackboard.car_position = result.car_position
+        self.node.get_logger().info(f'result pos: {result.car_position}')
         if not self.follow_lane: #at shell location
             time.sleep(7) #pick up shell
             return SUCCEED
@@ -72,6 +75,7 @@ class Plan2State(ActionState):
             self.handle_result  # cb to process the response
         )
         self.follow_lane = None
+        self.node = Node('log')
         self.count = None
 
     def create_goal_handler(self, blackboard: Blackboard) -> FindPath.Goal:
@@ -97,6 +101,7 @@ class Plan2State(ActionState):
             s = blackboard.car_position
             t = blackboard.goal
 
+        self.node.get_logger().info(f's pose: {s}')
         goal = FindPath.Goal()
         s_and_t = PoseArray()
         s_and_t.poses = [s, t]
@@ -121,7 +126,7 @@ class Plan2State(ActionState):
         if not self.follow_lane:
             blackboard.count = self.count + 1
         blackboard.trajectory = result.trajectory
-        print('trajectory', blackboard.trajectory)
+        # print('trajectory', blackboard.trajectory)
         return SUCCEED
     
 class Project(State):
@@ -315,7 +320,7 @@ def main():
     blackboard = Blackboard()
     outcome = sm(blackboard)
 
-    print('outcome', outcome)
+    # print('outcome', outcome)
 
     # shutdown ROS 2
     rclpy.shutdown()

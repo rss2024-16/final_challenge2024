@@ -1,6 +1,6 @@
 import numpy as np
 import rclpy
-import rospy
+import time
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
@@ -70,6 +70,7 @@ class SafetyControllerStopSign(Node):
         self.get_logger().info(pubstr)
 
         stop_cmd = AckermannDriveStamped()
+        has_stopped = False
 
         # offset = 0.5
         offset = 1
@@ -77,13 +78,19 @@ class SafetyControllerStopSign(Node):
         # need to change this function so that the car stops 0.5-1 meters from obstacle
         self.STOP_RANGE = self.VELOCITY**2/45 + offset
 
-        if  msg.x_pos <  self.STOP_RANGE:
+        if  msg.x_pos <  self.STOP_RANGE and has_stopped == False:
             # Example threshold, adjust as needed
             # self.get_logger().info('stopping')
+
             stop_cmd.drive.speed = 0.0
             stop_cmd.drive.steering_angle = 0.0
-            rospy.sleep(2.0)
+            time.sleep(2.0)
+            has_stopped = True
 
+            self.pub_safety.publish(stop_cmd)
+        else:
+            stop_cmd.drive.speed = 2.0
+            stop_cmd.drive.steering_angle = 0.0
             self.pub_safety.publish(stop_cmd)
 
         # else:
