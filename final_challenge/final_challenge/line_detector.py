@@ -174,8 +174,6 @@ class LineDetector(Node):
 
             self.publisher.publish(msg)
 
-            
-
             cv2.line(cdstP, (left_closest[0], left_closest[1]), (left_closest[2], left_closest[3]), (0,0,255), 3, cv2.LINE_AA)
             cv2.line(cdstP, (right_closest[0], right_closest[1]), (right_closest[2], right_closest[3]), (0,0,255), 3, cv2.LINE_AA)
         

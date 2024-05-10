@@ -253,6 +253,7 @@ def main():
     )
     #blackboard.car_side switch
     nav_sm.add_state(
+
         "PLANNING_LANE",
         Plan2State(),
         transitions={
@@ -327,3 +328,5 @@ def main():
     #If behind us (no points in front of car?)
         #need more logic for this cause not perfect
     #implement path planning for trajectory right/left
+
+    #ros2 launch zed_wrapper zed_camera.launch.py camera_model:=zed2
