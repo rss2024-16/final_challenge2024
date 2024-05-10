@@ -105,6 +105,8 @@ class Plan2State(ActionState):
         goal.follow_lane = self.follow_lane
         goal.right = car_side
         goal.map = blackboard.occ_map
+        goal.car_idx = blackboard.car_idx
+        goal.projection_idx = blackboard.projection_idx
         return goal
 
     def handle_result(self, blackboard, result: PoseArray) -> str:
@@ -119,7 +121,7 @@ class Plan2State(ActionState):
         if not self.follow_lane:
             blackboard.count = self.count + 1
         blackboard.trajectory = result.trajectory
-        # print('trajectory', blackboard.trajectory)
+        print('trajectory', blackboard.trajectory)
         return SUCCEED
     
 class Project(State):
@@ -158,7 +160,9 @@ class Project(State):
         t = poses[(self.count + 1) % len(poses)] 
         projection, projection_index = self.project.project(t, car_side) 
         _, car_index = self.project.project(s, car_side)
-
+        self.node.get_logger().info(f'{projection_index},{car_index}')
+        blackboard.car_idx = car_index
+        blackboard.projection_idx = projection_index
         blackboard.projection = projection
         blackboard.goal = t
         blackboard.follow_lane = True
@@ -168,6 +172,7 @@ class Project(State):
         # if projection_index < car_index:
         #     return "behind"
         self.count += 1
+        
         return "in_front"
 
 

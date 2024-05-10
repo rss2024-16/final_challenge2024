@@ -49,6 +49,7 @@ class NavigationActionServer(Node):
             # pass
 
         if self.node.success:
+            self.node.get_logger().info('success!')
             self.node.reset_success()
             feedback_msg.outcome = "success"
             self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))

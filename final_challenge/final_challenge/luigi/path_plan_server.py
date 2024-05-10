@@ -26,16 +26,19 @@ class PathPlanActionServer(Node):
         follow_lane = goal_handle.request.follow_lane
         car_side = goal_handle.request.right
         map = goal_handle.request.map
+        car_idx = goal_handle.request.car_idx
+        proj_idx = goal_handle.request.projection_idx
+        self.get_logger().info(f'{car_idx},{proj_idx}')
 
         if follow_lane: #LOAD LANE
             trajectory = LineTrajectory(Node("lane_trajectory"))
             if car_side:
                 self.node.get_logger().info("Right Lane Trajectory")
-                trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+                trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
             else:
                 self.node.get_logger().info("Left Lane Trajectory")
-                trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
-            trajectory.updatePoints(trajectory.points[:])
+                trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+            trajectory.updatePoints(trajectory.points[car_idx:proj_idx])
             path = trajectory.toPoseArray()
 
         else: #BFS
