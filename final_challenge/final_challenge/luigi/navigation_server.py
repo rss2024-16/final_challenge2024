@@ -6,6 +6,7 @@ from geometry_msgs.msg import Point,Pose,PoseArray
 
 from fc_msgs.action import NavigateToPose
 from .PID import PID
+from path_planning.stanley_controller import StanleyController
 import time
 import numpy as np
 
@@ -19,7 +20,8 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PID()
+        # self.node = PID()
+        self.node = StanleyController()
         self.traj_pub = self.create_publisher(PoseArray, "/trajectory/current", 1)
         self.get_logger().info('Navigation Action Server Initialized')
             
@@ -39,7 +41,7 @@ class NavigationActionServer(Node):
 
         self.traj_pub.publish(trajectory) #now the pursuit should start running
 
-        feedback_msg = NavigateToPose.Feedback()
+        # feedback_msg = NavigateToPose.Feedback()
 
         while self.node.success is None:
             # feedback_msg.outcome = "navigating"
@@ -51,21 +53,21 @@ class NavigationActionServer(Node):
         if self.node.success:
             self.node.get_logger().info('success!')
             self.node.reset_success()
-            feedback_msg.outcome = "success"
-            self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
-            goal_handle.publish_feedback(feedback_msg)
+            # feedback_msg.outcome = "success"
+            # self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
+            # goal_handle.publish_feedback(feedback_msg)
             goal_handle.succeed()
             result = NavigateToPose.Result()
             # result.car_position = self.node.car_position
             current_pose = self.node.current_pose
             result.car_position = Pose(position=Point(x=current_pose[0], y=current_pose[1], z=current_pose[2]))
-            self.node.get_logger().info(f'NAV CAR position {result.car_position}')
             return result
         else:
+            self.node.get_logger().info('navigation fail!')
             self.node.reset_success()
-            feedback_msg.outcome = "fail"
-            self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
-            goal_handle.publish_feedback(feedback_msg)
+            # feedback_msg.outcome = "fail"
+            # self.get_logger().info('Feedback: {0}'.format(feedback_msg.outcome))
+            # goal_handle.publish_feedback(feedback_msg)
             goal_handle.abort()
             return NavigateToPose.Result()
 
