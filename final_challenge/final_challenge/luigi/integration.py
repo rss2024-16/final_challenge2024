@@ -42,14 +42,14 @@ class Nav2State(ActionState):
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.handle_result  # cb to process the response
         )
-        self.follow_lane = None
+        # self.follow_lane = None
         self.node = Node('fuck_you')
 
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
-        self.follow_lane = blackboard.follow_lane
+        # self.follow_lane = blackboard.follow_lane
         goal = NavigateToPose.Goal()
         goal.trajectory = blackboard.trajectory
-        goal.follow_lane = self.follow_lane
+        goal.follow_lane = False
         goal.goal = blackboard.goal
         return goal
 
@@ -88,21 +88,23 @@ class Plan2State(ActionState):
         """
         initial_position: Pose = blackboard.init_pose
         shell_locations: PoseArray = blackboard.shell_locations
-        self.follow_lane : bool = blackboard.follow_lane
+        # self.follow_lane : bool = blackboard.follow_lane
+        self.follow_lane = False
         car_side = blackboard.car_side
         self.count = blackboard.count
             
         poses = shell_locations.poses
         poses = [initial_position] + poses
 
-        if self.follow_lane:
-            s = poses[self.count]
-            t = blackboard.projection
-        else:
-            self.node.get_logger().info(f'go to goal directly')
-            s = blackboard.car_position
-            t = blackboard.goal
-            self.goal_pub.publish(self.to_marker([t.position.x, t.position.y], 0, [0.0, 1.0, 0.0], 0.5))
+        # if self.follow_lane:
+        # s = poses[self.count]
+        s = blackboard.car_position
+        t = blackboard.projection
+        # else:
+        #     self.node.get_logger().info(f'go to goal directly')
+        #     s = blackboard.car_position
+        #     t = blackboard.goal
+        #     self.goal_pub.publish(self.to_marker([t.position.x, t.position.y], 0, [0.0, 1.0, 0.0], 0.5))
 
         goal = FindPath.Goal()
         s_and_t = PoseArray()
@@ -188,7 +190,8 @@ class Project(State):
         poses = shell_locations.poses
         poses = [initial_position] + poses
         
-        s = poses[self.count]
+        # s = poses[self.count]
+        s = blackboard.car_position
         t = poses[(self.count + 1) % len(poses)] 
         projection, projection_index = self.project.project(t, car_side) 
         car_projection, car_index = self.project.project(s, car_side)
@@ -290,7 +293,6 @@ def main():
     )
     #blackboard.car_side switch
     nav_sm.add_state(
-
         "PLANNING_LANE",
         Plan2State(),
         transitions={
@@ -304,31 +306,31 @@ def main():
         "FOLLOWING_LANE",
         Nav2State(), #PID
         transitions={
-            SUCCEED: "PLANNING_PATH",
+            SUCCEED: "PROJECTING_NEXT_GOAL",
             CANCEL: CANCEL,
             ABORT: ABORT
         }
     )
     #blackboard.follow_lane = False
-    nav_sm.add_state(
-        "PLANNING_PATH",
-        Plan2State(), #BFS
-        transitions={
-            SUCCEED: "FOLLOWING_PATH",
-            CANCEL: CANCEL,
-            ABORT: ABORT
-        }
-    )
-    # blackboard.trajectory: new trajectory to follow to the goal
-    nav_sm.add_state(
-        "FOLLOWING_PATH",
-        Nav2State(), #PID
-        transitions={
-            SUCCEED: "PROJECTING_NEXT_GOAL", 
-            CANCEL: CANCEL,
-            ABORT: ABORT
-        }
-    )
+    # nav_sm.add_state(
+    #     "PLANNING_PATH",
+    #     Plan2State(), #BFS
+    #     transitions={
+    #         SUCCEED: "FOLLOWING_PATH",
+    #         CANCEL: CANCEL,
+    #         ABORT: ABORT
+    #     }
+    # )
+    # # blackboard.trajectory: new trajectory to follow to the goal
+    # nav_sm.add_state(
+    #     "FOLLOWING_PATH",
+    #     Nav2State(), #PID
+    #     transitions={
+    #         SUCCEED: "PROJECTING_NEXT_GOAL", 
+    #         CANCEL: CANCEL,
+    #         ABORT: ABORT
+    #     }
+    # )
 
     sm.add_state(
         "NAVIGATING",
