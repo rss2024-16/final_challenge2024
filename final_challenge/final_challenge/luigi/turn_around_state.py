@@ -39,16 +39,19 @@ class PlanTurn(ActionState):
         self.follow_lane : bool = blackboard.follow_lane
         car_side = blackboard.car_side
         self.count = blackboard.count
-            
-        poses = shell_locations.poses
-        poses = [initial_position] + poses
 
-        if self.follow_lane:
-            s = poses[self.count]
-            t = blackboard.projection
-        else:
-            s = blackboard.car_position
-            t = blackboard.goal
+        s = blackboard.car_position
+        t = blackboard.car_projection
+            
+        # poses = shell_locations.poses
+        # poses = [initial_position] + poses
+
+        # if self.follow_lane:
+        #     s = poses[self.count]
+        #     t = blackboard.projection
+        # else:
+        #     s = blackboard.car_position
+        #     t = blackboard.goal
 
         self.node.get_logger().info(f's pose: {s}')
         goal = FindPath.Goal()
@@ -56,7 +59,7 @@ class PlanTurn(ActionState):
         s_and_t.poses = [s, t]
         s_and_t.header.frame_id = "map"
         goal.s_and_t = s_and_t
-        goal.follow_lane = self.follow_lane
+        goal.follow_lane = False
         goal.right = car_side
         goal.map = blackboard.occ_map
         goal.car_idx = blackboard.car_idx

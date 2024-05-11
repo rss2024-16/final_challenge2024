@@ -81,7 +81,7 @@ class LineDetector(Node):
 
         height,width,_ = image.shape
 
-        midpoint = 370#width // 2 + 30
+        midpoint = 335#width // 2 + 30
         # crop_mid_scale = 0.6
         # mid_start = int( midpoint*crop_mid_scale )
         # image[:,mid_start:width-mid_start, :] = 0
@@ -96,11 +96,6 @@ class LineDetector(Node):
         RADIUS = 1
 
 
-        curved_lines = []
-
-        start_point = int( .4*width )
-        # image[:,0:start_point,:] = 0
-        end_point = int( width - start_point )
 
         
         # for x in range(start_point,end_point,PIXEL_STEP):
@@ -132,11 +127,11 @@ class LineDetector(Node):
 
         PIXEL_STEP = 80
 
-        # start_point = int( .25*width )
-        # end_point = int( width - start_point )
+        start_point = int( .25*width )
+        end_point = int( width - start_point )
 
-        # for x in range(start_point,end_point,PIXEL_STEP):
-        #     cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
+        for x in range(start_point,end_point,PIXEL_STEP):
+            cv2.line(image,(x,0),(x,height),color = (0,0,0), thickness=11)
 
         OFFSET = -10#30
 
@@ -189,7 +184,7 @@ class LineDetector(Node):
             cv2.line(cdstP, (left_closest[0], left_closest[1]), (left_closest[2], left_closest[3]), (0,0,255), 3, cv2.LINE_AA)
             cv2.line(cdstP, (right_closest[0], right_closest[1]), (right_closest[2], right_closest[3]), (0,0,255), 3, cv2.LINE_AA)
         
-            cv2.circle(cdstP,(int(avg[0]+OFFSET),int(avg[1])),radius=5,color=(255,0,0),thickness=1)
+            cv2.circle(cdstP,(int(avg[0]+15),int(avg[1])),radius=5,color=(255,0,0),thickness=1)
             img_msg = self.bridge.cv2_to_imgmsg(cdstP, encoding="bgr8")
             self.img_view.publish(img_msg)
 
