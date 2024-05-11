@@ -5,7 +5,7 @@ import numpy as np
 import math
 from tf_transformations import quaternion_from_euler, euler_from_quaternion
 
-import path_planning.rsplan as rs
+# import path_planning.rsplan as rs
 from path_planning.utils import LineTrajectory
 from geometry_msgs.msg import Pose
 
@@ -14,8 +14,10 @@ class LaneProjection():
         self.left_lane_traj = LineTrajectory(Node('lane_proj1'), "/loaded_trajectory")
         self.right_lane_traj = LineTrajectory(Node('lane_proj2'), "/loaded_trajectory")
         
-        self.right_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
-        self.left_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+        # self.right_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+        self.right_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+        # self.left_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+        self.left_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
             
     def u_turn(self, location, right, sample_rate=0.5):
         """
@@ -69,42 +71,42 @@ class LaneProjection():
         u_trajectory.updatePoints(points)
         return u_trajectory.toPoseArray()
 
-    def reeds_shepp(self, location, right, sample_rate=0.5, turn_radius=0.5):
-        """
-        Takes in a point from the map frame and generates a circular 
-        U-turn trajectory to the other lane
-        location - Pose: point in the map frame
-        right - bool: True if right lane is desired, False if left lane is desired
-        sample_rate - float: desired distance between poses
-        Returns: 
-        Trajectory as a PoseArray
-        """        
-        # Get current position and goal position in other lane
-        car_pose = self.project(location, right)
-        goal_pose = self.project(location, not right)
+    # def reeds_shepp(self, location, right, sample_rate=0.5, turn_radius=0.5):
+    #     """
+    #     Takes in a point from the map frame and generates a circular 
+    #     U-turn trajectory to the other lane
+    #     location - Pose: point in the map frame
+    #     right - bool: True if right lane is desired, False if left lane is desired
+    #     sample_rate - float: desired distance between poses
+    #     Returns: 
+    #     Trajectory as a PoseArray
+    #     """        
+    #     # Get current position and goal position in other lane
+    #     car_pose = self.project(location, right)
+    #     goal_pose = self.project(location, not right)
 
-        # Unpack pose locations
-        theta_begin = euler_from_quaternion((
-            car_pose.orientation.x,
-            car_pose.orientation.y,
-            car_pose.orientation.z,
-            car_pose.orientation.w))[2]
-        begin = (car_pose.position.x, car_pose.position.y, theta_begin)
-        theta_end = euler_from_quaternion((
-            goal_pose.orientation.x,
-            goal_pose.orientation.y,
-            goal_pose.orientation.z,
-            goal_pose.orientation.w))[2]
-        end = (goal_pose.position.x, goal_pose.position.y, theta_end)
+    #     # Unpack pose locations
+    #     theta_begin = euler_from_quaternion((
+    #         car_pose.orientation.x,
+    #         car_pose.orientation.y,
+    #         car_pose.orientation.z,
+    #         car_pose.orientation.w))[2]
+    #     begin = (car_pose.position.x, car_pose.position.y, theta_begin)
+    #     theta_end = euler_from_quaternion((
+    #         goal_pose.orientation.x,
+    #         goal_pose.orientation.y,
+    #         goal_pose.orientation.z,
+    #         goal_pose.orientation.w))[2]
+    #     end = (goal_pose.position.x, goal_pose.position.y, theta_end)
 
-        # Generate the shortest reeds shepp path between the poses
-        path = rs.path(begin, end, turn_radius, 0, sample_rate)
-        configurations = path.waypoints()
+    #     # Generate the shortest reeds shepp path between the poses
+    #     path = rs.path(begin, end, turn_radius, 0, sample_rate)
+    #     configurations = path.waypoints()
 
-        # Turn path into a trajectory and return as pose array
-        rs_trajectory = LineTrajectory("/rs_trajectory")
-        rs_trajectory.updatePoints(configurations)
-        return rs_trajectory.toPoseArray()
+    #     # Turn path into a trajectory and return as pose array
+    #     rs_trajectory = LineTrajectory("/rs_trajectory")
+    #     rs_trajectory.updatePoints(configurations)
+    #     return rs_trajectory.toPoseArray()
 
     def get_segment(self, s, t, right):
         """

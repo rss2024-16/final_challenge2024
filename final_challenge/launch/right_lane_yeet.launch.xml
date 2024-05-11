@@ -6,7 +6,7 @@
     <node pkg="wall_follower" exec="safety_controller" name="safety_controller" output="screen">
         <param from="$(find-pkg-share wall_follower)/robotparams.yaml"/>
     </node>
-    <node pkg="final_challenge" exec="pid_controller" name="pid_controller" output="screen">
+    <node pkg="final_challenge" exec="yeet" name="yeet" output="screen">
         <param from="$(find-pkg-share path_planning)/config/real/yeet_irl.yaml"/>
     </node>
 </launch>

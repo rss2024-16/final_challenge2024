@@ -32,7 +32,7 @@ class SafetyController(Node):
         # self.SCAN_TOPIC = self.get_parameter('scan_topic').get_parameter_value().string_value
         self.SCAN_TOPIC = '/scan'
         # self.SAFETY_TOPIC = self.get_parameter('safety_topic').get_parameter_value().string_value
-        self.SAFETY_TOPIC = '/vesc/low_level/input/safety'
+        self.SAFETY_TOPIC = '/vesc/input/safety'
         # self.NAVIGATION_TOPIC = self.get_parameter('navigation_topic').get_parameter_value().string_value
         self.NAVIGATION_TOPIC = '/vesc/low_level/ackermann_cmd'
         # self.STOP_RANGE = self.get_parameter("stop_range").get_parameter_value().double_value
@@ -43,21 +43,21 @@ class SafetyController(Node):
 
         self.drive_pub = self.create_publisher(AckermannDriveStamped, '/vesc/high_level/input/nav_0', 10)
 
-        self.timer = self.create_timer(0.05, self.timer_callback)
+        # self.timer = self.create_timer(0.05, self.timer_callback)
 
-        self.get_logger().info('HERE "%s"' % self.SAFETY_TOPIC)
+        self.get_logger().info('Safety controller launched "%s"' % self.SAFETY_TOPIC)
 
         # self.VELOCITY = 1.6
         # self.STOP_RANGE = 1.0
         self.VELOCITY = 4.0
         self.TURNING_ANGLE = 0.0
 
-    def timer_callback(self):
-        # publish drive command at speed 3.0
-        drive_cmd = AckermannDriveStamped()
-        drive_cmd.drive.speed = 3.0
-        drive_cmd.drive.steering_angle = 0.0
-        self.drive_pub.publish(drive_cmd)
+    # def timer_callback(self):
+    #     # publish drive command at speed 3.0
+    #     drive_cmd = AckermannDriveStamped()
+    #     drive_cmd.drive.speed = 3.0
+    #     drive_cmd.drive.steering_angle = 0.0
+    #     self.drive_pub.publish(drive_cmd)
 
 
     def navigation_callback(self, msg: AckermannDriveStamped):
@@ -68,7 +68,6 @@ class SafetyController(Node):
         # self.pub_safety.publish(msg)
         self.VELOCITY = msg.drive.speed
         self.TURNING_ANGLE = msg.drive.steering_angle
-        pass
 
 
     def slice_ranges(self, laser_scan: LaserScan):

@@ -75,8 +75,8 @@ class BasementPointPublisher(State):
             return clockwise
         
         lane_traj = LineTrajectory(self.node)
-        lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/full-lane.traj")
-        # lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/full-lane.traj")
+        # lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/full-lane.traj")
+        lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/full-lane.traj")
          
         nearest_lane_point, nearest_index = self.lane_projection.find_nearest([x,y], lane_traj.points)
         closest_point = lane_traj.points[nearest_index]

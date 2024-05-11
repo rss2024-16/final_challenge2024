@@ -34,12 +34,12 @@ class PathPlanActionServer(Node):
             trajectory = LineTrajectory(Node("lane_trajectory"))
             if car_side:
                 self.node.get_logger().info("Right Lane Trajectory")
-                trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
-                # trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+                # trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+                trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
             else:
                 self.node.get_logger().info("Left Lane Trajectory")
-                trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
-                # trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+                # trajectory.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+                trajectory.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
             self.get_logger().info(f'Car idx: {car_idx}, Proj idx: {proj_idx}, total_points: {len(trajectory.points)}') 
             trajectory.updatePoints(trajectory.points[car_idx:proj_idx])
             path = trajectory.toPoseArray()

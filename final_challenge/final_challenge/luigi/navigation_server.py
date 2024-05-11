@@ -6,6 +6,7 @@ from geometry_msgs.msg import Point,Pose,PoseArray
 
 from fc_msgs.action import NavigateToPose
 from .PID import PID
+from path_planning.stanley_controller import StanleyController
 import time
 import numpy as np
 
@@ -19,7 +20,8 @@ class NavigationActionServer(Node):
             'navigate_to_pose',
             self.execute_callback)
         
-        self.node = PID()
+        # self.node = PID()
+        self.node = StanleyController()
         self.traj_pub = self.create_publisher(PoseArray, "/trajectory/current", 1)
         self.get_logger().info('Navigation Action Server Initialized')
             

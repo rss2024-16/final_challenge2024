@@ -48,8 +48,8 @@ class PID(YasminNode):
         # self.odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         # self.drive_topic = self.get_parameter('drive_topic').get_parameter_value().string_value
         self.odom_topic = "/pf/pose/odom"
-        # self.drive_topic = "/vesc/input/navigation"
-        self.drive_topic = '/drive'
+        self.drive_topic = "/vesc/input/navigation"
+        # self.drive_topic = '/drive'
 
         self.follow_lane = None
 
@@ -134,7 +134,6 @@ class PID(YasminNode):
         theta = orientation[2]
         R = self.transform(theta)
         self.current_pose = np.array([x,y,theta])  #car's coordinates in global frame
-
 
         drive_cmd = AckermannDriveStamped()
         if self.last_points is None or np.any(self.points != self.last_points):
@@ -227,9 +226,9 @@ class PID(YasminNode):
                         turning_angle = self.MAX_TURN if turning_angle > 0 else -self.MAX_TURN
 
 
-                    if closest_point[0] < 0:
-                        speed = -2.0
-                        turning_angle = turning_angle
+                    # if closest_point[0] < 0:
+                    #     speed = -2.0
+                    #     turning_angle = turning_angle
 
                     drive_cmd.drive.speed = speed
                     drive_cmd.drive.steering_angle = turning_angle

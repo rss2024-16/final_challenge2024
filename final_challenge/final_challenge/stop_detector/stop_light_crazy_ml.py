@@ -32,10 +32,10 @@ class LightDetector(Node):
         self.bridge = CvBridge()
 
         self.stoplights = [(-10.16142463684082,16.551956176757812),
-                            (-30.105144500732422,33.97337341308594),
+                            (-32.105144500732422,33.97337341308594),
                             (-54.410980224609375,22.996463775634766)]
 
-        self.ON_DISTANCE = 1.5
+        self.ON_DISTANCE = 2.5
 
         self.pose = (0.0, 0.0)
         self.time_elapsed = 0.0
@@ -72,7 +72,7 @@ class LightDetector(Node):
             # Slow down
             if self.state == State.DETECT:
                 slow_cmd = AckermannDriveStamped()
-                slow_cmd.drive.speed = min(self.curr_speed / 2, 1.6)
+                slow_cmd.drive.speed = max(self.curr_speed / 2, 1)
                 slow_cmd.drive.steering_angle = self.curr_steer_angle
                 self.safety_pub.publish(slow_cmd)
 
