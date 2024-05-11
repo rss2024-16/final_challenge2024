@@ -14,10 +14,10 @@ class LaneProjection():
         self.left_lane_traj = LineTrajectory(Node('lane_proj1'), "/loaded_trajectory")
         self.right_lane_traj = LineTrajectory(Node('lane_proj2'), "/loaded_trajectory")
         
-        # self.right_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
-        self.right_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
-        # self.left_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
-        self.left_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+        self.right_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+        # self.right_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/right-lane.traj")
+        self.left_lane_traj.load("/home/racecar/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
+        # self.left_lane_traj.load("/root/racecar_ws/src/path_planning/example_trajectories/left-lane.traj")
             
     def u_turn(self, location, right, sample_rate=0.5):
         """
